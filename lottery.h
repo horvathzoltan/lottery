@@ -3,6 +3,7 @@
 
 #include <QDate>
 //#include <QList>
+#include <QSet>
 #include <QVarLengthArray>
 
 
@@ -30,6 +31,7 @@ public:
     private:
         Hit hits[5];
         int numbers[5];
+
     public:
         void setHit(int i, Hit h){
             int ix = i-1;
@@ -57,6 +59,24 @@ public:
             return l.year<r.year;
         }
 
+        bool ParityTest(const QSet<int>& p){
+            int n = 0;
+            for(auto&i:numbers){
+                if(!(i%2)) n++;
+            }
+            return p.contains(n);
+        };
+
+        bool PentilisTest(const QSet<int>& p){
+            QSet<int> pen;
+            static const int r = 90/5; //18
+            for(auto&i:numbers){
+                auto pn = i/r; // pentilis
+                pen.insert(pn);
+            }
+            return p.contains(pen.count());
+
+        }
 
     };
 
@@ -69,6 +89,8 @@ public:
 //    };
 
     static QVarLengthArray<Data> _data;
+
+    static QSet<int> _shuffled;
     Lottery();
     static bool FromFile(const QString& fp);
     static QStringList CsvSplit(const QString& s);
@@ -84,6 +106,14 @@ public:
     };
 
     static RefreshR Refresh();
+
+    struct ShuffleR
+    {
+        int num[5];
+        bool isok;
+    };
+
+    static ShuffleR Shuffle(int *);
 
     static QVarLengthArray<int> Histogram(
         QVarLengthArray<Data>::iterator begin,

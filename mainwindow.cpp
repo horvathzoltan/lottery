@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "lottery.h"
+#include "shufflingdialog.h"
+#include "common/helper/downloader/downloader.h"
 
 #include <QtCharts>
 
@@ -101,8 +103,15 @@ MainWindow::~MainWindow()
  * Számok
  * */
 //2020;46;2020.11.14.;0;0 Ft;41;1 533 055 Ft;3707;18 260 Ft;107291;1 645 Ft;8;13;30;61;68
+
+// TODO ha a héten le lett töltve akkor nem kell megint leszedni
+// ez abból derül ki, hogy a fájlban az év/hét az eheti-e és ezévi-e
 void MainWindow::on_pushButton_data_clicked()
 {
+    bool isok = com::helper::Downloader::Wget(
+        "https://bet.szerencsejatek.hu/cmsfiles/otos.csv",
+        Lottery::_settings.path);
+    if(!isok) return;
     Lottery::_data.clear();
     auto a = Lottery::Refresh();
     setUi(a);
@@ -111,8 +120,11 @@ void MainWindow::on_pushButton_data_clicked()
 void MainWindow::setUi(Lottery::RefreshR m){
     if(!m.isOk) return;
     this->ui->label_data->setText(QString::number(Lottery::_data.length()));
-    static int const MAX = 90;
-    static int const MAY = m.max_y;
+    auto d = Lottery::_data.last();
+    this->ui->label_date->setText(d.datetime.toString());
+
+    MAX = 90;
+    MAY = m.max_y;
 
 //    chart->series().clear();
     //chart->axes().detach();
@@ -140,9 +152,9 @@ void MainWindow::setUi(Lottery::RefreshR m){
     for(int* j:m.last){
        for(int i=0;i<5;i++){
            int n = j[i];
-            qreal y = m.histogram[n];
+            qreal y = m.histogram[n-1];
             //qreal y = 0;
-            qreal x = n+.5;
+            qreal x = n-.5;
             scatterseries->append(QPointF(x, y));
 
             frames[n-1]->setPalette(pal);
@@ -271,3 +283,49 @@ void MainWindow::setUi(Lottery::RefreshR m){
     }
     chart->addSeries(scatterseries);
 }
+
+// TODO amit generáltunk a héten, elmentjük és a teljes számmennyiséggel számolunk pl histogramot
+// kvázi hozzásorsolunk - lesz egy könyvtárban egy új fájl az 1000 számmal az 5 legjobbat megmutatjuk kékkel - a sorsolások legjobbjait mutathatjuk kékkel - hashsetes öszesítéssel
+// TODO - kell egy összesített kiértékelés - hány sorsoásból - azaz ezres csomagból melyik az az 5-6-7 10 leggyakoribb szám, megjelenítjük lilával
+void MainWindow::on_pushButton_clicked()
+{
+    ShufflingDialog d;
+    d.exec();
+    auto a = d.result();
+    if(a.isok) setUi(a);
+}
+
+void MainWindow::setUi(Lottery::ShuffleR m)
+{
+    QMessageBox msgBox;
+    QString e;
+
+    for(auto&i:m.num){
+        if(!e.isEmpty()) e+=",";
+        e+=QString::number(i);
+        Lottery::_shuffled.insert(i);
+    }
+    msgBox.setText("számok: " +e);
+    msgBox.exec();
+
+    //static int const MAX = 90;
+    //static int const MAY = m.max_y;
+
+    static QScatterSeries *scatterseries = new QScatterSeries();
+    chart->removeSeries(scatterseries);
+    scatterseries->setName("sorsolt");
+    scatterseries->setColor(Qt::blue);
+    scatterseries->setMarkerSize(7.0);
+
+    scatterseries->append(QPointF(0, 0));
+    scatterseries->append(QPointF(MAX, MAY));
+
+    for(auto&i:Lottery::_shuffled){
+        qreal x = i-.5;
+        scatterseries->append(QPointF(x, 5));
+
+    }
+
+    chart->addSeries(scatterseries);
+}
+

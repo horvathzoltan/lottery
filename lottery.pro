@@ -1,4 +1,4 @@
-QT       += core gui charts
+QT       += core gui charts network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -63,6 +63,8 @@ LIBS += -L$$COMMON_LIBS_FULLPATH/ -lshortguid # loggerhez kell
 LIBS += -L$$COMMON_LIBS_FULLPATH/ -lstringhelper
 LIBS += -L$$COMMON_LIBS_FULLPATH/ -ltextfilehelper
 LIBS += -L$$COMMON_LIBS_FULLPATH/ -lfilehelper
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -ldownloadhelper
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lprocesshelper
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -lmacrofactory
 
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -linihelper
@@ -85,14 +87,17 @@ DEPENDPATH += $$HOME/common
 SOURCES += \
     lottery.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    shufflingdialog.cpp
 
 HEADERS += \
     lottery.h \
-    mainwindow.h
+    mainwindow.h \
+    shufflingdialog.h
 
 FORMS += \
-    mainwindow.ui
+    mainwindow.ui \
+    shufflingdialog.ui
 
 TRANSLATIONS += \
     lottery_hu_HU.ts

@@ -1,6 +1,9 @@
 #include "lottery.h"
 #include "common/helper/textfilehelper/textfilehelper.h"
 #include "common/helper/string/stringhelper.h"
+#include "common/helper/downloader/downloader.h"
+#include <QThread>
+#include <random>
 
 Lottery::Lottery()
 {
@@ -9,9 +12,10 @@ Lottery::Lottery()
 
 Lottery::Settings Lottery::_settings;
 QVarLengthArray<Lottery::Data> Lottery::_data;
+QSet<int> Lottery::_shuffled;
 
-bool Lottery::FromFile(const QString& fp){
-    auto txt = com::helper::TextFileHelper::load(fp);
+bool Lottery::FromFile(const QString& txt){
+    //auto txt = com::helper::TextFileHelper::load(fp);
     auto lines = com::helper::StringHelper::toStringList(txt);
 
     auto size_orioginal = _data.size();
@@ -64,8 +68,16 @@ Lottery::Hit Lottery::Hit::FromCsv(const QStringList& lines, const QString &desc
 }
 
 Lottery::RefreshR Lottery::Refresh(){
-    auto isok = Lottery::FromFile(Lottery::_settings.path);
-    if(!isok) return {false, {0}, {{0},{0},{0},{0},{0}}, {{}}, 0, 0};
+    ////https://bet.szerencsejatek.hu/cmsfiles/otos.csv
+    //com::helper::Downloader d;
+    static Lottery::RefreshR nullobj{false, {0}, {{0},{0},{0},{0},{0}}, {{}}, 0, 0};
+//    bool isok = com::helper::Downloader::Wget(
+//        "https://bet.szerencsejatek.hu/cmsfiles/otos.csv",
+//        Lottery::_settings.path);
+//    if(!isok) return nullobj;
+    auto txt = com::helper::TextFileHelper::load(Lottery::_settings.path);
+    bool isok = Lottery::FromFile(txt);
+    if(!isok) return nullobj;
 
     Lottery::RefreshR r;
     r.isOk = true;
@@ -84,6 +96,85 @@ Lottery::RefreshR Lottery::Refresh(){
     r.max_y = *std::max_element(r.histogram.begin(), r.histogram.end());
 
     return r;
+}
+
+
+Lottery::ShuffleR Lottery::Shuffle(int* ptr){
+    static Lottery::ShuffleR nullobj{{0,0,0,0,0},false};
+
+//    auto txt = com::helper::TextFileHelper::load(Lottery::_settings.path);
+//    bool isok = Lottery::FromFile(txt);
+//    if(!isok) return nullobj;
+
+    Lottery::ShuffleR e;
+
+    auto i_min = _data.begin();
+    auto i_max = _data.end();
+
+    auto histogram = Lottery::Histogram(i_min, i_max);
+
+    QVector<int> num2;
+    for(int i=0;i<90;i++)
+    {
+        int n = histogram[i]; // i a szám, n a daramszáma
+        for(int k=0;k<n;k++)
+        {
+            num2.append(i+1);
+        }
+    }
+
+    //std::random_shuffle(num.begin(), num.end());
+    //static const int MAX = 1000;
+    QVarLengthArray<Data, 1000> d;
+    int t=0;
+    do {
+        if(ptr)*ptr=t/10;
+        auto num = num2;
+        Data d0;
+        for(int j=1;j<=5;j++)
+        {
+            std::random_shuffle(num.begin(), num.end());
+            int max = num.count();
+            auto ix = rand() % max;
+            int n = num[ix];
+            d0.setNumber(j, n);
+            num.removeAll(n);
+        }
+        if(!d0.ParityTest({2,3})) continue;
+        if(!d0.PentilisTest({3,4})) continue;
+
+        if ( QThread::currentThread()->isInterruptionRequested() )
+        {
+            return nullobj;
+        }
+        d.append(d0);
+        t++;
+    } while(t<d.capacity());
+
+    auto h2 = Lottery::Histogram(d.begin(), d.end());
+
+    auto h3 = h2;
+
+    for(int i=0;i<5;i++)
+    {
+        int ix = -1;
+        int max=-1;
+        for(int j=0;j<90;j++){
+            int n = h3[j];
+            if(n>max)
+            {
+                max=n;
+                ix=j;
+            }
+        }
+        e.num[i] = ix+1;
+        h3[ix] = 0;
+    }
+
+    int n = sizeof(e.num) / sizeof(e.num[0]);
+
+    std::sort(e.num, e.num+n);
+    return e;
 }
 
 QVarLengthArray<int> Lottery::Histogram(
