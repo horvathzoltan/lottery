@@ -32,12 +32,8 @@
          <property name="text">
           <string>TextLabel</string>
          </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="label_date">
-         <property name="text">
-          <string>TextLabel</string>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
          </property>
         </widget>
        </item>
@@ -58,6 +54,13 @@
         <widget class="QPushButton" name="pushButton">
          <property name="text">
           <string>Generate!</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_2">
+         <property name="text">
+          <string>Delete</string>
          </property>
         </widget>
        </item>

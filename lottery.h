@@ -3,15 +3,38 @@
 
 #include <QDate>
 //#include <QList>
+#include <QApplication>
+#include <QDir>
 #include <QSet>
+#include <QString>
 #include <QVarLengthArray>
+#include <QVector>
 
 
 class Lottery
 {
 public:
     struct Settings{
-        QString path = "/home/zoli/Letöltések/otos.csv";
+        private:
+            const QString appname = "lottery_data";
+            const QString download_dir = "download";
+            const QString data_dir = "data";
+            const QDir home = QDir(QDir::homePath());
+
+            const QString home_fn = home.filePath(appname);
+
+            const QString download_path = QDir(home_fn).filePath(download_dir);
+            const QString data_path = QDir(home_fn).filePath(data_dir);
+            QDir path(const QString& fn){
+                auto p = QDir(fn);
+                if(!p.exists()) p.mkpath(fn);
+                return p;
+            };
+
+        public:
+            QString url = "https://bet.szerencsejatek.hu/cmsfiles/otos.csv";
+            QString download_ffn(){ return path(download_path).filePath("otos.csv");};
+            QString data_ffn(const QString &fn){ return path(data_path).filePath(fn);};
     };
 
     static Settings _settings;
@@ -40,6 +63,15 @@ public:
         }
 
         int* Numbers() {return numbers;}
+
+        QString NumbersToString() const {
+            QString e;
+            for(auto&i:numbers){
+                if(!e.isEmpty())e+=",";
+                e+=QString::number(i);
+                }
+            return e;
+        }
 
         int number(int i){
             int ix = i-1;
@@ -78,6 +110,12 @@ public:
 
         }
 
+        bool TestAll(){
+            if(!ParityTest({2,3})) return false;
+            if(!PentilisTest({3,4})) return false;
+            return true;
+        }
+
     };
 
 //    struct DataAscByDate
@@ -109,15 +147,21 @@ public:
 
     struct ShuffleR
     {
-        int num[5];
+        QVector<int> num; // a húzás leggyakoribb számai 5-10
+        QVector<Data> comb; // a leggyakoribb számokból képzett kombinációk
         bool isok;
     };
 
-    static ShuffleR Shuffle(int *);
+    static ShuffleR Shuffle(int *, int db=5);
+
+    static void Save(const QVector<Data>&);
 
     static QVarLengthArray<int> Histogram(
         QVarLengthArray<Data>::iterator begin,
-        QVarLengthArray<Data>::iterator end, int x =0);
+            QVarLengthArray<Data>::iterator end, int x =0);
+    static QVector<QVector<int>> Select(const QVector<int>& p, int k);
+    static QVector<QVector<int>> Combination(int N, int K);
+    static QVector<Data> Filter(QVector<QVector<int>>& p);
 };
 
 #endif // LOTTERY_H

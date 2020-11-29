@@ -28,10 +28,13 @@ private:
     QChart *chart;
     QChartView *chartView;
     int MAX=0,MAY=0;
+    QScatterSeries _shuffled_series;
 private slots:
     void on_pushButton_data_clicked();
 
     void on_pushButton_clicked();
+
+    void on_pushButton_2_clicked();
 
 private:
     Ui::MainWindow *ui;

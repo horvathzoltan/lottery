@@ -36,10 +36,22 @@ class WorkerThread : public QThread
 
 public:
     int *p;
+    int k=7;
     Lottery::ShuffleR r;
     void run() override
     {
-        r= Lottery::Shuffle(p);
+        r= Lottery::Shuffle(p, k);
+
+        if(r.num.count()>5){
+            auto a = Lottery::Select(r.num, 5);
+            r.comb = Lottery::Filter(a);
+        }
+        else{
+            Lottery::Data d0;
+            for(int j=1;j<=5;j++) d0.setNumber(j, r.num[j]);
+            if(d0.TestAll()) r.comb.append(d0);
+        }
+
         emit resultReady();
     }
 signals:

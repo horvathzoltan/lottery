@@ -2,6 +2,8 @@
 #include "common/helper/textfilehelper/textfilehelper.h"
 #include "common/helper/string/stringhelper.h"
 #include "common/helper/downloader/downloader.h"
+#include "common/helper/textfilehelper/textfilehelper.h"
+#include <QDir>
 #include <QThread>
 #include <random>
 
@@ -75,7 +77,8 @@ Lottery::RefreshR Lottery::Refresh(){
 //        "https://bet.szerencsejatek.hu/cmsfiles/otos.csv",
 //        Lottery::_settings.path);
 //    if(!isok) return nullobj;
-    auto txt = com::helper::TextFileHelper::load(Lottery::_settings.path);
+    auto ffn = Lottery::_settings.download_ffn();
+    auto txt = com::helper::TextFileHelper::load(ffn);
     bool isok = Lottery::FromFile(txt);
     if(!isok) return nullobj;
 
@@ -98,9 +101,67 @@ Lottery::RefreshR Lottery::Refresh(){
     return r;
 }
 
+QVector<QVector<int>> Lottery::Select(const QVector<int>&p, int k){
+    QVector<QVector<int>> e;
+    auto n = p.count();
+    if(n<1||k<1||n<k) return e;
 
-Lottery::ShuffleR Lottery::Shuffle(int* ptr){
-    static Lottery::ShuffleR nullobj{{0,0,0,0,0},false};
+    auto c = Combination(n, k);
+
+    for(auto&i:c){
+        QVector<int> f;
+        for(auto&j:i){
+            f.append(p[j]);
+        }
+
+        e.append(f);
+    }
+
+    return e;
+}
+
+QVector<Lottery::Data> Lottery::Filter(QVector<QVector<int>>& p){
+    QVector<Data> e;
+    if(p.isEmpty()) return e;
+
+    for(auto&i:p){
+        Data d0;
+        if(i.count()<5) return e;
+        for(int j=0;j<5;j++)
+        {
+            int n = i[j];
+            d0.setNumber(j+1, n);
+        }
+        if(!d0.TestAll()) continue;
+        e.append(d0);
+    }
+    return e;
+}
+
+//http://rosettacode.org/wiki/Combinations#C.2B.2B
+QVector<QVector<int>>  Lottery::Combination(int N, int K)
+{
+    std::string bitmask(K, 1); // K leading 1's
+    bitmask.resize(N, 0); // N-K trailing 0's
+    QVector<QVector<int>> e;
+
+    // print integers and permute bitmask
+    do {
+        QVector<int> f;
+        for (int i = 0; i < N; ++i) // [0..N-1] integers
+        {
+            if (bitmask[i]) f.append(i);//std::cout << " " << i;
+        }
+        e.append(f);
+        //std::cout << std::endl;
+    } while (std::prev_permutation(bitmask.begin(), bitmask.end()));
+    return e;
+}
+
+
+Lottery::ShuffleR Lottery::Shuffle(int* ptr, int db){
+    static Lottery::ShuffleR nullobj{{},{},false};
+    if(db<5 || db>10) return nullobj;
 
 //    auto txt = com::helper::TextFileHelper::load(Lottery::_settings.path);
 //    bool isok = Lottery::FromFile(txt);
@@ -124,11 +185,11 @@ Lottery::ShuffleR Lottery::Shuffle(int* ptr){
     }
 
     //std::random_shuffle(num.begin(), num.end());
-    //static const int MAX = 1000;
-    QVarLengthArray<Data, 1000> d;
+    static const int MAX = 1000;
+    QVector<Data> d;
     int t=0;
     do {
-        if(ptr)*ptr=t/10;
+        if(ptr)*ptr=t/(MAX/100);
         auto num = num2;
         Data d0;
         for(int j=1;j<=5;j++)
@@ -140,8 +201,9 @@ Lottery::ShuffleR Lottery::Shuffle(int* ptr){
             d0.setNumber(j, n);
             num.removeAll(n);
         }
-        if(!d0.ParityTest({2,3})) continue;
-        if(!d0.PentilisTest({3,4})) continue;
+        if(!d0.TestAll()) continue;
+//        if(!d0.ParityTest({2,3})) continue;
+//        if(!d0.PentilisTest({3,4})) continue;
 
         if ( QThread::currentThread()->isInterruptionRequested() )
         {
@@ -149,13 +211,16 @@ Lottery::ShuffleR Lottery::Shuffle(int* ptr){
         }
         d.append(d0);
         t++;
-    } while(t<d.capacity());
+    } while(t<MAX);
+
+    Lottery::Save(d);
 
     auto h2 = Lottery::Histogram(d.begin(), d.end());
 
     auto h3 = h2;
 
-    for(int i=0;i<5;i++)
+    // kiválasztjuk a 10 legjobbat
+    for(int i=0;i<db;i++)
     {
         int ix = -1;
         int max=-1;
@@ -167,14 +232,29 @@ Lottery::ShuffleR Lottery::Shuffle(int* ptr){
                 ix=j;
             }
         }
-        e.num[i] = ix+1;
+        e.num.append(ix+1);
         h3[ix] = 0;
     }
 
-    int n = sizeof(e.num) / sizeof(e.num[0]);
+    //int n = sizeof(e.num) / sizeof(e.num[0]);
 
-    std::sort(e.num, e.num+n);
+    std::sort(e.num.begin(), e.num.end());
     return e;
+}
+
+void Lottery::Save(const QVector<Lottery::Data> &d)
+{
+    QString fn = QDateTime::currentDateTimeUtc().toString("yyyyMMdd_hh:mm:ss")+".csv";
+    QString ffn =Lottery::_settings.data_ffn(fn);
+    QString txt;
+
+    for(auto&i:d)
+    {
+        if(!txt.isEmpty()) txt+= com::helper::StringHelper::NewLine;
+        txt.append(i.NumbersToString());
+    }
+
+    com::helper::TextFileHelper::save(txt, ffn);
 }
 
 QVarLengthArray<int> Lottery::Histogram(
