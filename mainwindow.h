@@ -33,10 +33,11 @@ private:
     QScatterSeries _all_shuffled_series;
 private slots:
     void on_pushButton_data_clicked();
-
     void on_pushButton_clicked();
-
     void on_pushButton_2_clicked();
+    void keepCallout();
+    void tooltip(QPointF point, bool state);
+    void mouseMoveEvent(QMouseEvent *event);
 
 private:
     Ui::MainWindow *ui;

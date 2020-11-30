@@ -77,8 +77,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     //tab_2
     //QChart *
-        chart = new QChart();
+    chart = new QChart();
     chart->setTitle("gyakoriság");
+    chart->setAcceptHoverEvents(true);
+
     chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
     chartView->setParent(ui->tab_2);
@@ -103,6 +105,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     chart->addSeries(&_all_shuffled_series);
 
+//    connect(&_all_shuffled_series, &QLineSeries::clicked, this, &MainWindow::keepCallout);
+    connect(&_all_shuffled_series, &QLineSeries::hovered, this, &MainWindow::tooltip);
+
+
     auto r = Lottery::RefreshByWeek(7);
     setUi(r);
 }
@@ -112,6 +118,36 @@ MainWindow::~MainWindow()
     //for(auto i:frames){delete i;}
     delete ui;
     //labels[0]->setText("a");
+}
+
+// https://code.qt.io/cgit/qt/qtcharts.git/tree/examples/charts/callout?h=5.15
+void MainWindow::mouseMoveEvent(QMouseEvent *event)
+{
+//    m_coordX->setText(QString("X: %1").arg(m_chart->mapToValue(event->pos()).x()));
+//    m_coordY->setText(QString("Y: %1").arg(m_chart->mapToValue(event->pos()).y()));
+//    QGraphicsView::mouseMoveEvent(event);
+}
+
+void MainWindow::keepCallout(){
+//    m_callouts.append(m_tooltip);
+//    m_tooltip = new Callout(m_chart);
+}
+
+void MainWindow::tooltip(QPointF point, bool state){
+//    QAbstractSeries *series = qobject_cast<QAbstractSeries *>(sender());
+//    if (m_tooltip == 0){
+//        m_tooltip = new Callout(m_chart, series);
+//    }
+//    if (state) {
+//        m_tooltip->setSeries(series);
+//        m_tooltip->setText(QString("X: %1 \nY: %2 ").arg(point.x()).arg(point.y()));
+//        m_tooltip->setAnchor(point);
+//        m_tooltip->setZValue(11);
+//        m_tooltip->updateGeometry();
+//        m_tooltip->show();
+//    } else {
+//        m_tooltip->hide();
+//    }
 }
 
 //https://bet.szerencsejatek.hu/cmsfiles/otos.csv
