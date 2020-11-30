@@ -19,8 +19,9 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void setUi(Lottery::RefreshR m);
-    void setUi(Lottery::ShuffleR m);
+    void setUi(const Lottery::RefreshR& m);
+    void setUi(const Lottery::ShuffleR& m);
+    void setUi(const Lottery::RefreshByWeekR& r);
 private:
     QList<QFrame*> frames;
     QList<QLabel*> labels;
@@ -29,6 +30,7 @@ private:
     QChartView *chartView;
     int MAX=0,MAY=0;
     QScatterSeries _shuffled_series;
+    QScatterSeries _all_shuffled_series;
 private slots:
     void on_pushButton_data_clicked();
 

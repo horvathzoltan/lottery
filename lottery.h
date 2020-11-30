@@ -24,17 +24,26 @@ public:
             const QString home_fn = home.filePath(appname);
 
             const QString download_path = QDir(home_fn).filePath(download_dir);
-            const QString data_path = QDir(home_fn).filePath(data_dir);
+            const QString data_path = QDir(QDir(home_fn).filePath(data_dir)).filePath(yearweek());
             QDir path(const QString& fn){
                 auto p = QDir(fn);
                 if(!p.exists()) p.mkpath(fn);
                 return p;
             };
 
+
         public:
+            int K = 10;
             QString url = "https://bet.szerencsejatek.hu/cmsfiles/otos.csv";
             QString download_ffn(){ return path(download_path).filePath("otos.csv");};
             QString data_ffn(const QString &fn){ return path(data_path).filePath(fn);};
+            QString yearweek(){
+                auto t = QDate::currentDate();
+                auto t_y = t.year();
+                auto t_w = t.weekNumber();
+
+                return QString::number(t_y)+"-"+QString::number(t_w);
+            }
     };
 
     static Settings _settings;
@@ -73,7 +82,7 @@ public:
             return e;
         }
 
-        int number(int i){
+        int number(int i) const{
             int ix = i-1;
             if(ix<0 || ix>=5) return 0;
             return numbers[ix];
@@ -128,7 +137,7 @@ public:
 
     static QVarLengthArray<Data> _data;
 
-    static QSet<int> _shuffled;
+    //static QSet<int> _shuffled;
     Lottery();
     static bool FromFile(const QString& fp);
     static QStringList CsvSplit(const QString& s);
@@ -152,16 +161,30 @@ public:
         bool isok;
     };
 
-    static ShuffleR Shuffle(int *, int db=5);
+    static QVector<Data> Shuffle(int *, int max);
 
     static void Save(const QVector<Data>&);
 
     static QVarLengthArray<int> Histogram(
-        QVarLengthArray<Data>::iterator begin,
-            QVarLengthArray<Data>::iterator end, int x =0);
-    static QVector<QVector<int>> Select(const QVector<int>& p, int k);
+        const QVector<Data>::const_iterator begin,
+        const QVector<Data>::const_iterator end, int x =0);
+    static QVector<QVector<int>> SelectByCombination(const QVector<int>& p, int k);
     static QVector<QVector<int>> Combination(int N, int K);
     static QVector<Data> Filter(QVector<QVector<int>>& p);
+    static QVector<int> SelectByOccurence(const QVector<Data> &d, int i);
+    static ShuffleR Generate(int *p, int k, int max);
+    static ShuffleR Generate2(const QVector<Lottery::Data>& d, int k);
+    struct RefreshByWeekR{
+        int shuffnum;
+        QVector<int> num; // a húzás leggyakoribb számai 5-10
+        QVector<Data> comb; // a leggyakoribb számokból képzett kombinációk
+        bool isok;
+
+        QString ToString() const {
+            return QString("%2 - %1 db").arg(comb.count()).arg(shuffnum);
+        }
+    };
+    static RefreshByWeekR RefreshByWeek(int K);
 };
 
 #endif // LOTTERY_H

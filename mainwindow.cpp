@@ -2,8 +2,11 @@
 #include "ui_mainwindow.h"
 #include "lottery.h"
 #include "shufflingdialog.h"
+#include "combinationdialog.h"
 #include "common/helper/downloader/downloader.h"
 #include "common/helper/string/stringhelper.h"
+#include "common/helper/textfilehelper/textfilehelper.h"
+
 #include <QtCharts>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -12,6 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    ui->label_yearweek->setText(Lottery::_settings.yearweek());
     static const int s = 48;
 
     static auto fi = ui->frame->fontInfo();
@@ -69,8 +73,6 @@ MainWindow::MainWindow(QWidget *parent)
         pal.setColor(QPalette::Background, Qt::lightGray);
 
         if((i/R)%2) w->setPalette(pal);
-
-
     }
 
     //tab_2
@@ -90,6 +92,19 @@ MainWindow::MainWindow(QWidget *parent)
     _shuffled_series.setMarkerSize(7.0);
     _shuffled_series.append(QPointF(0, 0));
     _shuffled_series.append(QPointF(MAX, MAY));
+
+    chart->addSeries(&_shuffled_series);
+
+    _all_shuffled_series.setName("összes");
+    _all_shuffled_series.setColor(Qt::green);
+    _all_shuffled_series.setMarkerSize(7.0);
+    _all_shuffled_series.append(QPointF(0, 0));
+    _all_shuffled_series.append(QPointF(MAX, MAY));
+
+    chart->addSeries(&_all_shuffled_series);
+
+    auto r = Lottery::RefreshByWeek(7);
+    setUi(r);
 }
 
 MainWindow::~MainWindow()
@@ -126,7 +141,7 @@ void MainWindow::on_pushButton_data_clicked()
     setUi(a);
 }
 
-void MainWindow::setUi(Lottery::RefreshR m){
+void MainWindow::setUi(const Lottery::RefreshR& m){
     if(!m.isOk) return;
     QString txt = QString::number(Lottery::_data.size()) + com::helper::StringHelper::NewLine+ \
                 Lottery::_data.last().datetime.toString() + com::helper::StringHelper::NewLine+ \
@@ -304,56 +319,93 @@ void MainWindow::setUi(Lottery::RefreshR m){
 //TODO az aktuális kombinációt mutatni kellene zöld pöttyökkel illetve a szelvény nézeten zöld kerettel
 //TODO egy kombináció hány számja egyezik meg az előzővel - legfeljebb mennyi egyezhet meg? 1.
 //TODO az kombinációkban szereplő összes számokat -nem csak az utolsó sorsolásét- mutatni kellene
+
+// generate
 void MainWindow::on_pushButton_clicked()
 {
     ShufflingDialog d;
     d.exec();
     auto a = d.result();
     if(a.isok) setUi(a);
+
+//    QString data_ffn = Lottery::_settings.data_ffn("");
+//    QDir dir(data_ffn);
+//    auto fl = dir.entryInfoList(QDir::Filter::Files);
+//    if(fl.isEmpty()) return;
+//    QVector<Lottery::Data> fd;
+//    for(auto&i:fl){
+//        if(!i.fileName().endsWith(".csv")) continue;
+//        auto fn = i.absoluteFilePath();
+//        auto txt = com::helper::TextFileHelper::load(fn);
+//        auto lines = com::helper::StringHelper::toStringList(txt);
+//        for(auto&line:lines){
+//            auto l = line.split(",");
+//            if(l.count()<5) continue;
+//            Lottery::Data d0;
+//            bool isok;
+//            for(int k=0;k<5;k++) d0.setNumber(k+1, l[k].toInt(&isok));
+//            fd.append(d0);
+//        }
+//    }
+//    if(fd.isEmpty()) return;
+//    auto r = Lottery::Generate2(fd, 7);
+    auto r = Lottery::RefreshByWeek(7);
+    setUi(r);
+
 }
 
-void MainWindow::setUi(Lottery::ShuffleR m)
+void MainWindow::setUi(const Lottery::ShuffleR& m)
 {
-    QMessageBox msgBox;
-    QString e;
+    CombinationDialog d;
+    d.setUi(m);
+    d.exec();
 
-    for(auto&i:m.num){
-        if(!e.isEmpty()) e+=",";
-        e+=QString::number(i);
-        Lottery::_shuffled.insert(i);        
-    }
-    QString txt = "számok: " +e;
-    if(!m.comb.isEmpty()){
-        if(!txt.isEmpty()) txt+=com::helper::StringHelper::NewLine;
-        txt+=QString("kombinációk: %1 db").arg(m.comb.count());
-        for(auto&i:m.comb){
-            if(!txt.isEmpty()) txt+=com::helper::StringHelper::NewLine;
-            txt+= i.NumbersToString();
-        }
-    }
-    msgBox.setText(txt);
-    msgBox.exec();
+    _shuffled_series.clear();
+    //chart->removeSeries(&_shuffled_series);
 
-    //static int const MAX = 90;
-    //static int const MAY = m.max_y;
-
-    chart->removeSeries(&_shuffled_series);
-
-    for(auto&i:Lottery::_shuffled){
+    for(auto&i:m.num){//Lottery::_shuffled
         qreal x = i-.5;
-        _shuffled_series.append(QPointF(x, 5));
+        _shuffled_series.append(QPointF(x, 1));
     }
 
-    chart->addSeries(&_shuffled_series);
+    //chart->addSeries(&_shuffled_series);
 }
 
+void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
+    ui->listWidget->clear();
+    QString txt = m.ToString();
+    ui->label_comb->setText(txt);
+    for(auto&i:m.comb){
+        ui->listWidget->addItem(i.NumbersToString());
+    }
 
+    _all_shuffled_series.clear();
+    //chart->removeSeries(&_all_shuffled_series);
+    QString ctxt;
+    int o = 0;
+    for(auto&i:m.num){
+        qreal x = i-.5;
+        _all_shuffled_series.append(QPointF(x, 6));
+        if(!ctxt.isEmpty()) ctxt+=",";
+        if(!(o%7)) if(!ctxt.isEmpty()) ctxt+=com::helper::StringHelper::NewLine;
+
+        ctxt += QString::number(i);
+
+        o++;
+
+    }
+
+    ui->label_combnum->setText(ctxt);
+    //chart->addSeries(&_all_shuffled_series);
+}
+
+//delete
 void MainWindow::on_pushButton_2_clicked()
 {
     chart->removeSeries(&_shuffled_series);
     _shuffled_series.clear();
     _shuffled_series.append(QPointF(0, 0));
     _shuffled_series.append(QPointF(MAX, MAY));
-    Lottery::_shuffled.clear();
+    //Lottery::_shuffled.clear();
 
 }

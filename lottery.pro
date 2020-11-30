@@ -85,17 +85,20 @@ INCLUDEPATH += $$HOME/common
 DEPENDPATH += $$HOME/common
 
 SOURCES += \
+    combinationdialog.cpp \
     lottery.cpp \
     main.cpp \
     mainwindow.cpp \
     shufflingdialog.cpp
 
 HEADERS += \
+    combinationdialog.h \
     lottery.h \
     mainwindow.h \
     shufflingdialog.h
 
 FORMS += \
+    combinationdialog.ui \
     mainwindow.ui \
     shufflingdialog.ui
 

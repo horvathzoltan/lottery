@@ -14,7 +14,33 @@ Lottery::Lottery()
 
 Lottery::Settings Lottery::_settings;
 QVarLengthArray<Lottery::Data> Lottery::_data;
-QSet<int> Lottery::_shuffled;
+//QSet<int> Lottery::_shuffled;
+
+Lottery::RefreshByWeekR Lottery::RefreshByWeek(int K){
+    Lottery::RefreshByWeekR nullelem{0, {},{},false};
+    QString data_ffn = Lottery::_settings.data_ffn("");
+    QDir dir(data_ffn);
+    auto fl = dir.entryInfoList(QDir::Filter::Files);
+    if(fl.isEmpty()) return nullelem;
+    QVector<Lottery::Data> fd;
+    for(auto&i:fl){
+        if(!i.fileName().endsWith(".csv")) continue;
+        auto fn = i.absoluteFilePath();
+        auto txt = com::helper::TextFileHelper::load(fn);
+        auto lines = com::helper::StringHelper::toStringList(txt);
+        for(auto&line:lines){
+            auto l = line.split(",");
+            if(l.count()<5) continue;
+            Lottery::Data d0;
+            bool isok;
+            for(int k=0;k<5;k++) d0.setNumber(k+1, l[k].toInt(&isok));
+            fd.append(d0);
+        }
+    }
+    if(fd.isEmpty()) return nullelem;
+    auto r = Lottery::Generate2(fd, K);
+    return {fd.count(), r.num, r.comb, r.isok};
+}
 
 bool Lottery::FromFile(const QString& txt){
     //auto txt = com::helper::TextFileHelper::load(fp);
@@ -101,7 +127,7 @@ Lottery::RefreshR Lottery::Refresh(){
     return r;
 }
 
-QVector<QVector<int>> Lottery::Select(const QVector<int>&p, int k){
+QVector<QVector<int>> Lottery::SelectByCombination(const QVector<int>&p, int k){
     QVector<QVector<int>> e;
     auto n = p.count();
     if(n<1||k<1||n<k) return e;
@@ -139,7 +165,7 @@ QVector<Lottery::Data> Lottery::Filter(QVector<QVector<int>>& p){
 }
 
 //http://rosettacode.org/wiki/Combinations#C.2B.2B
-QVector<QVector<int>>  Lottery::Combination(int N, int K)
+QVector<QVector<int>> Lottery::Combination(int N, int K)
 {
     std::string bitmask(K, 1); // K leading 1's
     bitmask.resize(N, 0); // N-K trailing 0's
@@ -158,21 +184,38 @@ QVector<QVector<int>>  Lottery::Combination(int N, int K)
     return e;
 }
 
+Lottery::ShuffleR Lottery::Generate(int *p, int k, int max){
 
-Lottery::ShuffleR Lottery::Shuffle(int* ptr, int db){
-    static Lottery::ShuffleR nullobj{{},{},false};
-    if(db<5 || db>10) return nullobj;
+    auto shuffled = Lottery::Shuffle(p, max); //sorsolás - 1000 db
+    auto r = Generate2(shuffled, k);
 
-//    auto txt = com::helper::TextFileHelper::load(Lottery::_settings.path);
-//    bool isok = Lottery::FromFile(txt);
-//    if(!isok) return nullobj;
+    return r;
+}
 
-    Lottery::ShuffleR e;
+Lottery::ShuffleR Lottery::Generate2(const QVector<Lottery::Data>& d, int k){
+    Lottery::ShuffleR r;
+    int K = Lottery::_settings.K;
+    r.num = Lottery::SelectByOccurence(d, K); // vesszük k db leggyakoribbat
 
-    auto i_min = _data.begin();
-    auto i_max = _data.end();
+    if(r.num.count()>5){
+        auto a = Lottery::SelectByCombination(r.num, 5); // permutáljuk
+        r.comb = Lottery::Filter(a);
+    }
+    else{
+        Lottery::Data d0;
+        for(int j=1;j<=5;j++) d0.setNumber(j, r.num[j]);
+        if(d0.TestAll()) r.comb.append(d0);
+    }
+    return r;
+}
 
-    auto histogram = Lottery::Histogram(i_min, i_max);
+
+QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
+    QVector<Data> d;
+
+    if(max<10) max=10; else if(max>1000) max = 1000;
+
+    auto histogram = Lottery::Histogram(_data.begin(), _data.end());
 
     QVector<int> num2;
     for(int i=0;i<90;i++)
@@ -184,12 +227,9 @@ Lottery::ShuffleR Lottery::Shuffle(int* ptr, int db){
         }
     }
 
-    //std::random_shuffle(num.begin(), num.end());
-    static const int MAX = 1000;
-    QVector<Data> d;
     int t=0;
     do {
-        if(ptr)*ptr=t/(MAX/100);
+        if(ptr)*ptr=t/(max/100);
         auto num = num2;
         Data d0;
         for(int j=1;j<=5;j++)
@@ -202,18 +242,22 @@ Lottery::ShuffleR Lottery::Shuffle(int* ptr, int db){
             num.removeAll(n);
         }
         if(!d0.TestAll()) continue;
-//        if(!d0.ParityTest({2,3})) continue;
-//        if(!d0.PentilisTest({3,4})) continue;
 
-        if ( QThread::currentThread()->isInterruptionRequested() )
-        {
-            return nullobj;
-        }
+        if(QThread::currentThread()->isInterruptionRequested()) return d;
+
         d.append(d0);
         t++;
-    } while(t<MAX);
+    } while(t<max);
 
     Lottery::Save(d);
+
+    return d;
+}
+
+QVector<int> Lottery::SelectByOccurence(const QVector<Data>& d, int db){
+    QVector<int> e;
+    if(db<5 || db>10) return e;
+    if(d.isEmpty()) return e;
 
     auto h2 = Lottery::Histogram(d.begin(), d.end());
 
@@ -232,15 +276,14 @@ Lottery::ShuffleR Lottery::Shuffle(int* ptr, int db){
                 ix=j;
             }
         }
-        e.num.append(ix+1);
+        e.append(ix+1);
         h3[ix] = 0;
     }
 
-    //int n = sizeof(e.num) / sizeof(e.num[0]);
-
-    std::sort(e.num.begin(), e.num.end());
+    std::sort(e.begin(), e.end());
     return e;
 }
+
 
 void Lottery::Save(const QVector<Lottery::Data> &d)
 {
@@ -258,15 +301,15 @@ void Lottery::Save(const QVector<Lottery::Data> &d)
 }
 
 QVarLengthArray<int> Lottery::Histogram(
-    QVarLengthArray<Data>::iterator begin,
-    QVarLengthArray<Data>::iterator end, int m)
+    const QVector<Data>::const_iterator begin,
+    const QVector<Data>::const_iterator end, int m)
 {
     QVarLengthArray<int> r(90);for(auto& i:r) i=0;//0-89
     if(begin==end) return r;
     if(m<0||m>5) return r;
 
     //int t = 0;
-    for(auto& i = begin;i!=end;i++){
+    for(auto i = begin;i!=end;i++){
         if(!m){
             for(int n =1;n<=5;n++)
             {
