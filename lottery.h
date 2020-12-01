@@ -33,7 +33,7 @@ public:
 
 
         public:
-            int K = 10;
+            int K = 7;
             QString url = "https://bet.szerencsejatek.hu/cmsfiles/otos.csv";
             QString download_ffn(){ return path(download_path).filePath("otos.csv");};
             QString data_ffn(const QString &fn){ return path(data_path).filePath(fn);};
@@ -154,9 +154,16 @@ public:
 
     static RefreshR Refresh();
 
+    struct Occurence{
+        int num;
+        int hist;
+
+        bool operator < (const Occurence& r){ return num < r.num;};
+    };
+
     struct ShuffleR
     {
-        QVector<int> num; // a húzás leggyakoribb számai 5-10
+        QVector<Occurence> num; // a húzás leggyakoribb számai 5-10
         QVector<Data> comb; // a leggyakoribb számokból képzett kombinációk
         bool isok;
     };
@@ -168,15 +175,17 @@ public:
     static QVarLengthArray<int> Histogram(
         const QVector<Data>::const_iterator begin,
         const QVector<Data>::const_iterator end, int x =0);
-    static QVector<QVector<int>> SelectByCombination(const QVector<int>& p, int k);
+    static QVector<QVector<int>> SelectByCombination(const QVector<Occurence>& p, int k);
     static QVector<QVector<int>> Combination(int N, int K);
     static QVector<Data> Filter(QVector<QVector<int>>& p);
-    static QVector<int> SelectByOccurence(const QVector<Data> &d, int i);
+
+
+    static QVector<Occurence> SelectByOccurence(const QVector<Data> &d, int i);
     static ShuffleR Generate(int *p, int k, int max);
-    static ShuffleR Generate2(const QVector<Lottery::Data>& d, int k);
+    static ShuffleR Generate2(const QVector<Lottery::Data>& d);
     struct RefreshByWeekR{
         int shuffnum;
-        QVector<int> num; // a húzás leggyakoribb számai 5-10
+        QVector<Occurence> num; // a húzás leggyakoribb számai 5-10
         QVector<Data> comb; // a leggyakoribb számokból képzett kombinációk
         bool isok;
 
@@ -184,7 +193,9 @@ public:
             return QString("%2 - %1 db").arg(comb.count()).arg(shuffnum);
         }
     };
-    static RefreshByWeekR RefreshByWeek(int K);
+    static RefreshByWeekR RefreshByWeek();
+    static QFileInfoList ExclusionByWeek();
+    static QFileInfoList DataFileInfoListByWeek();
 };
 
 #endif // LOTTERY_H

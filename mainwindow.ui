@@ -91,6 +91,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QSpinBox" name="spinBox">
+         <property name="minimum">
+          <number>5</number>
+         </property>
+         <property name="maximum">
+          <number>10</number>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QLabel" name="label_combnum">
          <property name="text">
           <string>TextLabel</string>

@@ -6,6 +6,7 @@
 #include "common/helper/downloader/downloader.h"
 #include "common/helper/string/stringhelper.h"
 #include "common/helper/textfilehelper/textfilehelper.h"
+#include <QtWidgets/QGraphicsView>
 
 #include <QtCharts>
 
@@ -13,8 +14,11 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
       , ui(new Ui::MainWindow)
 {
+    _isinited = false;
     ui->setupUi(this);
 
+    ui->spinBox->setValue(Lottery::_settings.K);
+    ui->spinBox->setDisabled(false);
     ui->label_yearweek->setText(Lottery::_settings.yearweek());
     static const int s = 48;
 
@@ -72,7 +76,7 @@ MainWindow::MainWindow(QWidget *parent)
         QPalette pal = palette();
         pal.setColor(QPalette::Background, Qt::lightGray);
 
-        if((i/R)%2) w->setPalette(pal);
+        if((i/R)%2) w->setPalette(pal);        
     }
 
     //tab_2
@@ -109,8 +113,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&_all_shuffled_series, &QLineSeries::hovered, this, &MainWindow::tooltip);
 
 
-    auto r = Lottery::RefreshByWeek(7);
-    setUi(r);
+    //QFileInfoList l = Lottery::ExclusionByWeek();
+//    auto r = Lottery::RefreshByWeek();
+//    if(r.isok)
+//        setUi(r);
+
+    RefreshByWeek();
+    _isinited = true;
 }
 
 MainWindow::~MainWindow()
@@ -123,31 +132,30 @@ MainWindow::~MainWindow()
 // https://code.qt.io/cgit/qt/qtcharts.git/tree/examples/charts/callout?h=5.15
 void MainWindow::mouseMoveEvent(QMouseEvent *event)
 {
-//    m_coordX->setText(QString("X: %1").arg(m_chart->mapToValue(event->pos()).x()));
-//    m_coordY->setText(QString("Y: %1").arg(m_chart->mapToValue(event->pos()).y()));
-//    QGraphicsView::mouseMoveEvent(event);
+    m_coordX->setText(QString("X: %1").arg(chart->mapToValue(event->pos()).x()));
+    m_coordY->setText(QString("Y: %1").arg(chart->mapToValue(event->pos()).y()));
+    //QGraphicsView::mouseMoveEvent(event);
+
 }
 
 void MainWindow::keepCallout(){
-//    m_callouts.append(m_tooltip);
-//    m_tooltip = new Callout(m_chart);
+    m_callouts.append(m_tooltip);
+    m_tooltip = new Callout(chart);
 }
 
 void MainWindow::tooltip(QPointF point, bool state){
-//    QAbstractSeries *series = qobject_cast<QAbstractSeries *>(sender());
-//    if (m_tooltip == 0){
-//        m_tooltip = new Callout(m_chart, series);
-//    }
-//    if (state) {
-//        m_tooltip->setSeries(series);
-//        m_tooltip->setText(QString("X: %1 \nY: %2 ").arg(point.x()).arg(point.y()));
-//        m_tooltip->setAnchor(point);
-//        m_tooltip->setZValue(11);
-//        m_tooltip->updateGeometry();
-//        m_tooltip->show();
-//    } else {
-//        m_tooltip->hide();
-//    }
+    if (!m_tooltip) m_tooltip = new Callout(chart);
+
+if (state) {
+    m_tooltip->setText(QString::number(point.x()+.5)+"-"+QString::number(point.y(),'f',0));
+    //m_tooltip->setText(QString("X: %1 \nY: %2 ").arg(point.x()).arg(point.y()));
+    m_tooltip->setAnchor(point);
+    m_tooltip->setZValue(11);
+    m_tooltip->updateGeometry();
+    m_tooltip->show();
+} else {
+    m_tooltip->hide();
+}
 }
 
 //https://bet.szerencsejatek.hu/cmsfiles/otos.csv
@@ -385,7 +393,7 @@ void MainWindow::on_pushButton_clicked()
 //    }
 //    if(fd.isEmpty()) return;
 //    auto r = Lottery::Generate2(fd, 7);
-    auto r = Lottery::RefreshByWeek(7);
+    auto r = Lottery::RefreshByWeek();
     setUi(r);
 
 }
@@ -398,9 +406,10 @@ void MainWindow::setUi(const Lottery::ShuffleR& m)
 
     _shuffled_series.clear();
     //chart->removeSeries(&_shuffled_series);
+    //auto r = shuffnum/Lottery::_data.size();
 
     for(auto&i:m.num){//Lottery::_shuffled
-        qreal x = i-.5;
+        qreal x = i.num-.5;
         _shuffled_series.append(QPointF(x, 1));
     }
 
@@ -410,6 +419,14 @@ void MainWindow::setUi(const Lottery::ShuffleR& m)
 void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     ui->listWidget->clear();
     QString txt = m.ToString();
+
+    qreal may=0;
+    for(auto&i:m.num){if(i.hist>may) may=i.hist;}
+    qreal r2 = may?MAY/may:0;
+
+//    int r;
+//    if(Lottery::_data.isEmpty()) r=1;
+//    else r = (m.shuffnum/Lottery::_data.size())+5;
     ui->label_comb->setText(txt);
     for(auto&i:m.comb){
         ui->listWidget->addItem(i.NumbersToString());
@@ -420,12 +437,12 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     QString ctxt;
     int o = 0;
     for(auto&i:m.num){
-        qreal x = i-.5;
-        _all_shuffled_series.append(QPointF(x, 6));
+        qreal x = i.num-.5;
+        _all_shuffled_series.append(QPointF(x, r2?i.hist*r2:6));
         if(!ctxt.isEmpty()) ctxt+=",";
         if(!(o%7)) if(!ctxt.isEmpty()) ctxt+=com::helper::StringHelper::NewLine;
 
-        ctxt += QString::number(i);
+        ctxt += QString::number(i.num);
 
         o++;
 
@@ -444,4 +461,20 @@ void MainWindow::on_pushButton_2_clicked()
     _shuffled_series.append(QPointF(MAX, MAY));
     //Lottery::_shuffled.clear();
 
+}
+
+void MainWindow::on_spinBox_valueChanged(int arg1)
+{
+    if(!_isinited) return;
+    static bool lock = false;
+    if(lock) return;
+    lock=true;
+    Lottery::_settings.K = arg1;
+    RefreshByWeek();
+    lock=false;
+}
+
+void MainWindow::RefreshByWeek(){
+    auto r = Lottery::RefreshByWeek();
+    if(r.isok) setUi(r);
 }

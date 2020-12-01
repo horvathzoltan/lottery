@@ -16,11 +16,33 @@ Lottery::Settings Lottery::_settings;
 QVarLengthArray<Lottery::Data> Lottery::_data;
 //QSet<int> Lottery::_shuffled;
 
-Lottery::RefreshByWeekR Lottery::RefreshByWeek(int K){
-    Lottery::RefreshByWeekR nullelem{0, {},{},false};
+QFileInfoList Lottery::DataFileInfoListByWeek(){
     QString data_ffn = Lottery::_settings.data_ffn("");
     QDir dir(data_ffn);
     auto fl = dir.entryInfoList(QDir::Filter::Files);
+    return fl;
+}
+
+QFileInfoList Lottery::ExclusionByWeek(){
+    auto fil = DataFileInfoListByWeek();
+    QString ex_fn = Lottery::_settings.data_ffn("excl.csv");
+
+    auto ex_txt = com::helper::TextFileHelper::load(ex_fn);
+    auto ex_lines = com::helper::StringHelper::toStringList(ex_txt);
+
+    QFileInfoList e;
+
+    for(auto&i:fil) if(!ex_lines.contains(i.fileName())) e.append(i);
+
+    return e;
+}
+
+Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
+    Lottery::RefreshByWeekR nullelem{0, {},{},false};
+//    QString data_ffn = Lottery::_settings.data_ffn("");
+//    QDir dir(data_ffn);
+//    auto fl = dir.entryInfoList(QDir::Filter::Files);
+    auto fl = DataFileInfoListByWeek();
     if(fl.isEmpty()) return nullelem;
     QVector<Lottery::Data> fd;
     for(auto&i:fl){
@@ -38,7 +60,7 @@ Lottery::RefreshByWeekR Lottery::RefreshByWeek(int K){
         }
     }
     if(fd.isEmpty()) return nullelem;
-    auto r = Lottery::Generate2(fd, K);
+    auto r = Lottery::Generate2(fd);
     return {fd.count(), r.num, r.comb, r.isok};
 }
 
@@ -127,7 +149,7 @@ Lottery::RefreshR Lottery::Refresh(){
     return r;
 }
 
-QVector<QVector<int>> Lottery::SelectByCombination(const QVector<int>&p, int k){
+QVector<QVector<int>> Lottery::SelectByCombination(const QVector<Occurence>&p, int k){
     QVector<QVector<int>> e;
     auto n = p.count();
     if(n<1||k<1||n<k) return e;
@@ -137,7 +159,7 @@ QVector<QVector<int>> Lottery::SelectByCombination(const QVector<int>&p, int k){
     for(auto&i:c){
         QVector<int> f;
         for(auto&j:i){
-            f.append(p[j]);
+            f.append(p[j].num);
         }
 
         e.append(f);
@@ -187,15 +209,15 @@ QVector<QVector<int>> Lottery::Combination(int N, int K)
 Lottery::ShuffleR Lottery::Generate(int *p, int k, int max){
 
     auto shuffled = Lottery::Shuffle(p, max); //sorsolás - 1000 db
-    auto r = Generate2(shuffled, k);
+    auto r = Generate2(shuffled);
 
     return r;
 }
 
-Lottery::ShuffleR Lottery::Generate2(const QVector<Lottery::Data>& d, int k){
+Lottery::ShuffleR Lottery::Generate2(const QVector<Lottery::Data>& d){
     Lottery::ShuffleR r;
     int K = Lottery::_settings.K;
-    r.num = Lottery::SelectByOccurence(d, K); // vesszük k db leggyakoribbat
+     r.num = Lottery::SelectByOccurence(d, K); // vesszük k db leggyakoribbat
 
     if(r.num.count()>5){
         auto a = Lottery::SelectByCombination(r.num, 5); // permutáljuk
@@ -203,7 +225,7 @@ Lottery::ShuffleR Lottery::Generate2(const QVector<Lottery::Data>& d, int k){
     }
     else{
         Lottery::Data d0;
-        for(int j=1;j<=5;j++) d0.setNumber(j, r.num[j]);
+        for(int j=1;j<=5;j++) d0.setNumber(j, r.num[j-1].num);
         if(d0.TestAll()) r.comb.append(d0);
     }
     return r;
@@ -254,14 +276,14 @@ QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
     return d;
 }
 
-QVector<int> Lottery::SelectByOccurence(const QVector<Data>& d, int db){
-    QVector<int> e;
+QVector<Lottery::Occurence> Lottery::SelectByOccurence(const QVector<Data>& d, int db){
+    QVector<Occurence> e;
     if(db<5 || db>10) return e;
     if(d.isEmpty()) return e;
 
     auto h2 = Lottery::Histogram(d.begin(), d.end());
 
-    auto h3 = h2;
+//    auto h3 = h2;
 
     // kiválasztjuk a 10 legjobbat
     for(int i=0;i<db;i++)
@@ -269,15 +291,15 @@ QVector<int> Lottery::SelectByOccurence(const QVector<Data>& d, int db){
         int ix = -1;
         int max=-1;
         for(int j=0;j<90;j++){
-            int n = h3[j];
+            int n = h2[j];
             if(n>max)
             {
                 max=n;
                 ix=j;
             }
         }
-        e.append(ix+1);
-        h3[ix] = 0;
+        e.append({ix+1, h2[ix]});
+        h2[ix] = 0;
     }
 
     std::sort(e.begin(), e.end());

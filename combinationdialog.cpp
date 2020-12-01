@@ -21,7 +21,7 @@ void CombinationDialog::setUi(const Lottery::ShuffleR &m)
 
     for(auto&i:m.num){
         if(!e.isEmpty()) e+=",";
-        e+=QString::number(i);
+        e+=QString::number(i.num);
         //Lottery::_shuffled.insert(i);
     }
 
