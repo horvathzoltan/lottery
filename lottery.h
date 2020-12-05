@@ -33,6 +33,9 @@ public:
 
 
         public:
+            int max = 30;
+            int c_min = 10;
+            int c_max = 1000;
             int K = 7;
             QString url = "https://bet.szerencsejatek.hu/cmsfiles/otos.csv";
             QString download_ffn(){ return path(download_path).filePath("otos.csv");};

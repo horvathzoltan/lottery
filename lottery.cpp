@@ -222,12 +222,15 @@ Lottery::ShuffleR Lottery::Generate2(const QVector<Lottery::Data>& d){
     if(r.num.count()>5){
         auto a = Lottery::SelectByCombination(r.num, 5); // permutáljuk
         r.comb = Lottery::Filter(a);
+        r.isok = true;
     }
-    else{
+    else if(r.num.count()==5){
         Lottery::Data d0;
         for(int j=1;j<=5;j++) d0.setNumber(j, r.num[j-1].num);
         if(d0.TestAll()) r.comb.append(d0);
+        r.isok = true;
     }
+
     return r;
 }
 
@@ -235,7 +238,7 @@ Lottery::ShuffleR Lottery::Generate2(const QVector<Lottery::Data>& d){
 QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
     QVector<Data> d;
 
-    if(max<10) max=10; else if(max>1000) max = 1000;
+    if(max<Lottery::_settings.c_min) max=Lottery::_settings.c_min; else if(max>Lottery::_settings.c_max) max = Lottery::_settings.c_max;
 
     auto histogram = Lottery::Histogram(_data.begin(), _data.end());
 
@@ -278,7 +281,7 @@ QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
 
 QVector<Lottery::Occurence> Lottery::SelectByOccurence(const QVector<Data>& d, int db){
     QVector<Occurence> e;
-    if(db<5 || db>10) return e;
+    if(db<5 || db>Lottery::_settings.max) return e;
     if(d.isEmpty()) return e;
 
     auto h2 = Lottery::Histogram(d.begin(), d.end());

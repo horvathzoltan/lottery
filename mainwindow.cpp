@@ -17,8 +17,10 @@ MainWindow::MainWindow(QWidget *parent)
     _isinited = false;
     ui->setupUi(this);
 
-    ui->spinBox->setValue(Lottery::_settings.K);
-    ui->spinBox->setDisabled(false);
+    //ui->spinBox->setValue(Lottery::_settings.K);
+    uiSpinBoxSetMinMax(5, 30);
+    uiSpinBoxSetValue(Lottery::_settings.K);
+    //ui->spinBox->setDisabled(false);
     ui->label_yearweek->setText(Lottery::_settings.yearweek());
     static const int s = 48;
 
@@ -154,10 +156,32 @@ if (state) {
     m_tooltip->updateGeometry();
     m_tooltip->show();
 } else {
+//    m_tooltip->setText("a");
+//    m_tooltip->setAnchor(point);
+//    m_tooltip->updateGeometry();
+//    m_tooltip->show();
     m_tooltip->hide();
 }
 }
 
+void MainWindow::tooltip2(bool status, int index, QBarSet *barset){
+    if (!m_tooltip) m_tooltip = new Callout(chart);
+
+    if (status) {
+        m_tooltip->setText("mikmik");//(QString::number(point.x()+.5)+"-"+QString::number(point.y(),'f',0));
+        //m_tooltip->setText(QString("X: %1 \nY: %2 ").arg(point.x()).arg(point.y()));
+        //m_tooltip->setAnchor(point);
+        m_tooltip->setZValue(11);
+        m_tooltip->updateGeometry();
+        m_tooltip->show();
+    } else {
+        //    m_tooltip->setText("a");
+        //    m_tooltip->setAnchor(point);
+        //    m_tooltip->updateGeometry();
+        //    m_tooltip->show();
+        m_tooltip->hide();
+    }
+}
 //https://bet.szerencsejatek.hu/cmsfiles/otos.csv
 //
 /*
@@ -199,15 +223,19 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     MAX = 90;
     MAY = m.max_y;
 
-//    chart->series().clear();
+    //chart->series().clear();
     //chart->axes().detach();
 
-    if(chart->series().count()>0) chart->removeAllSeries();
+    if(!chart->series().isEmpty()){
+        for(auto&s:chart->series()) chart->removeSeries(s);
+
+        //chart->removeAllSeries();
+    }
     for(auto& a:chart->axes()) chart->removeAxis(a);
 
-    QBarSeries *barseries = new QBarSeries();
+    QBarSeries* barseries = new QBarSeries();
     //barseries->setBarWidth(1);
-    QBarSet *set0 = new QBarSet("összes");
+    QBarSet* set0 = new QBarSet("összes");
     barseries->append(set0);
 
     QScatterSeries *scatterseries = new QScatterSeries();
@@ -243,7 +271,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
         l->setName(QString::number(n+1));
         lineseries[0]->append(QPointF(0, 0));
 
-        auto s = new QBarSet(QString::number(n+1));
+        //auto s = new QBarSet(QString::number(n+1));
     }
 
     /*lineseries[0]->append(QPointF(0, 0));
@@ -355,6 +383,9 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
         chart->addSeries(lineseries[n]);
     }
     chart->addSeries(scatterseries);
+
+    connect(barseries, &QBarSeries::hovered, this, &MainWindow::tooltip2);
+
 }
 
 //TODO könyvtárban gyűlnek a számok ok
@@ -476,5 +507,37 @@ void MainWindow::on_spinBox_valueChanged(int arg1)
 
 void MainWindow::RefreshByWeek(){
     auto r = Lottery::RefreshByWeek();
-    if(r.isok) setUi(r);
+    if(r.isok)
+        setUi(r);
 }
+
+void MainWindow::on_pushButton_cminux_clicked()
+{
+    int v = ui->labelc->property("value").toInt();
+    int min = ui->labelc->property("min").toUInt();
+    if(v<=min) return; // elértük
+    uiSpinBoxSetValue(--v);
+    on_spinBox_valueChanged(v);
+}
+
+void MainWindow::on_pushButton_cplus_clicked()
+{
+    int v = ui->labelc->property("value").toInt();
+    int max = ui->labelc->property("max").toUInt();
+    if(v>=max) return; // elértük
+    uiSpinBoxSetValue(++v);
+    on_spinBox_valueChanged(v);
+}
+
+void MainWindow::uiSpinBoxSetValue(int i){
+    ui->labelc->setProperty("value", i);
+    ui->labelc->setText(QString::number(i));
+    //Lottery::_settings.K;
+}
+
+void MainWindow::uiSpinBoxSetMinMax(int min, int max){
+    ui->labelc->setProperty("min", min);
+    ui->labelc->setProperty("max", max);
+}
+
+//

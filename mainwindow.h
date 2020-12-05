@@ -23,6 +23,9 @@ public:
     void setUi(const Lottery::RefreshR& m);
     void setUi(const Lottery::ShuffleR& m);
     void setUi(const Lottery::RefreshByWeekR& r);
+    void uiSpinBoxSetValue(int i);
+    void uiSpinBoxSetMinMax(int i);
+    void uiSpinBoxSetMinMax(int min, int max);
 private:
     bool _isinited=false;
     QList<QFrame*> frames;
@@ -47,9 +50,14 @@ private slots:
 
     void on_spinBox_valueChanged(int arg1);
 
+    void on_pushButton_cminux_clicked();
+
+    void on_pushButton_cplus_clicked();
+
 public slots:
     void keepCallout();
     void tooltip(QPointF point, bool state);
+    void tooltip2(bool status, int index, QBarSet *barset);
 
 protected:
     void mouseMoveEvent(QMouseEvent *event);
