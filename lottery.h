@@ -37,20 +37,22 @@ public:
             int c_min = 10;
             int c_max = 1000;
             int K = 6;
+            int ticket_price = 300;
+            QString ticket_curr = "Ft";
+            QString url2= "http://www.lottoszamok.net/otoslotto/";
             QString url = "https://bet.szerencsejatek.hu/cmsfiles/otos.csv";
             QString download_ffn(){ return path(download_path).filePath("otos.csv");};
             QString data_ffn(const QString &fn){ return path(data_path).filePath(fn);};
-            QString yearweek(){
-//                auto t = QDate::currentDate();
-//                auto t_y = t.year();
-//                auto t_w = t.weekNumber();
+            QString yearweek(int *y = nullptr, int *w = nullptr){
+                auto t = QDate::currentDate();
+                auto t_y = t.year();
+                auto t_w = t.weekNumber();
 
-                auto t_y = year();
-                auto t_w = week();
+                if(y) *y = t_y;
+                if(w) *w = t_w;
                 return QString::number(t_y)+"-"+QString::number(t_w);
             }
-            int year(){ return 2020;}
-            int week(){ return 49;}
+
     };
 
     static Settings _settings;

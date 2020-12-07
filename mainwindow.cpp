@@ -9,7 +9,6 @@
 #include <QtWidgets/QGraphicsView>
 
 #include <QtCharts>
-// TODO mennyiért lehet megjátszani a kombinációkat
 /*
 9 - 35775-(88*300) = 9375
 8 - 18550-(34*300) = 8350
@@ -143,8 +142,10 @@ MainWindow::~MainWindow()
 // https://code.qt.io/cgit/qt/qtcharts.git/tree/examples/charts/callout?h=5.15
 void MainWindow::mouseMoveEvent(QMouseEvent *event)
 {
+  /*
     m_coordX->setText(QString("X: %1").arg(chart->mapToValue(event->pos()).x()));
     m_coordY->setText(QString("Y: %1").arg(chart->mapToValue(event->pos()).y()));
+*/
     //QGraphicsView::mouseMoveEvent(event);
 
 }
@@ -200,8 +201,13 @@ void MainWindow::tooltip2(bool status, int index, QBarSet *barset){
 //2020;46;2020.11.14.;0;0 Ft;41;1 533 055 Ft;3707;18 260 Ft;107291;1 645 Ft;8;13;30;61;68
 
 // TODO ha a héten le lett töltve akkor nem kell megint leszedni
-// ha az aktuálisan betöltött csv hete megfelel az aktuális hétnek, akkor az friss, nem kell tölteni
-// legyen szürke a gomb
+// ha a sorsolás már megvolt, akkor le lehet szedni, sorsolás előtt nem, ha már le lett töltve.
+// ha még nem lett letöltve, bármikor le lehet tölteni
+
+// TODO játékhét + - gombok, a letöltött adatok szerint jön megy, nem a hetet számolja ki
+// TODO új fül: sonogramszerűen mutatni a húzásokat - jobra az újabb
+// TODO http://www.lottoszamok.net/otoslotto/
+// mutatni a következő sorsolást, a várható főnyereményt és a részvételi határidőt
 void MainWindow::on_pushButton_download_clicked()
 {
     auto ffn = Lottery::_settings.download_ffn();
@@ -398,12 +404,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
 
 }
 
-//TODO könyvtárban gyűlnek a számok ok
-//TODO a kombinációknak is gyűlniük kellene - lehessen kiszürkíteni nem tetszőt
-//TODO az összes heti számok alapján is kellene tudni számolni kombinációt
-//TODO az aktuális kombinációt mutatni kellene zöld pöttyökkel illetve a szelvény nézeten zöld kerettel
 //TODO egy kombináció hány számja egyezik meg az előzővel - legfeljebb mennyi egyezhet meg? 1.
-//TODO az kombinációkban szereplő összes számokat -nem csak az utolsó sorsolásét- mutatni kellene
 
 // generate
 void MainWindow::on_pushButton_clicked()
@@ -470,10 +471,10 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
 //    else r = (m.shuffnum/Lottery::_data.size())+5;
     auto last = Lottery::_data.last();
     ui->label_comb->setText(txt);
+    int year, week;
+    auto t_txt = Lottery::_settings.yearweek(&year, &week);
 
-    auto t_y = Lottery::_settings.year();
-    auto t_w = Lottery::_settings.week();
-    bool isok = last.year == t_y && last.week == t_w;
+    bool isok = last.year == year && last.week == week;
 
     int sum_prize=0;
     int sum_n=0;
@@ -491,9 +492,7 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
                 sum_n++;
             }
 
-        }
-
-        if(last.year == t_y && last.week == t_w)
+        }        
 
         ui->listWidget->addItem(txt);
     }
@@ -518,10 +517,16 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
 
     }
 
-    if(sum_prize>0){
-        ctxt += '\n'+ QString::number(sum_prize) + ' ' + sum_curr;
+    auto sum_ticket_price = m.comb.length()*Lottery::_settings.ticket_price;
+    if(sum_prize>0){ // tudjuk a nyereményt
+        ctxt += '\n'+ QString::number(sum_prize)+'/' +QString::number(sum_ticket_price)+' ' + sum_curr;
+        ctxt += '\n'+ QString::number(sum_prize-sum_ticket_price)+' ' + sum_curr;
         ctxt += '\n'+ QString::number(sum_n)+'/'+QString::number(m.comb.length())+' '+"db";
         ctxt += "\narány:"+ QString::number(sum_n/(qreal)m.comb.length());
+    }
+    else{ //  még csak a szelvények árát tudjuk
+        ctxt += '\n'+ QString::number(sum_ticket_price)+' ' + Lottery::_settings.ticket_curr;
+         ctxt += '\n'+ QString::number(m.comb.length())+' '+"db";
     }
 
 
@@ -587,3 +592,19 @@ void MainWindow::uiSpinBoxSetMinMax(int min, int max){
 }
 
 //
+
+void MainWindow::on_pushButton_clipbrd_clicked()
+{
+    QClipboard *c = QApplication::clipboard();
+    QString e;
+    e = ui->label_combnum->text();
+
+    for(int i=0;i<ui->listWidget->count();i++)
+    {
+        auto txt = ui->listWidget->item(i)->text();
+
+        if(!e.isEmpty()) e+='\n';
+        e+= txt;
+    }
+    if(!e.isEmpty()) c->setText(e);
+}

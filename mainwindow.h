@@ -56,6 +56,8 @@ private slots:
 
     void on_pushButton_cplus_clicked();
 
+    void on_pushButton_clipbrd_clicked();
+
 public slots:
     void keepCallout();
     void tooltip(QPointF point, bool state);
