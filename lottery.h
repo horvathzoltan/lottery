@@ -36,24 +36,29 @@ public:
             int max = 30;
             int c_min = 10;
             int c_max = 1000;
-            int K = 7;
+            int K = 6;
             QString url = "https://bet.szerencsejatek.hu/cmsfiles/otos.csv";
             QString download_ffn(){ return path(download_path).filePath("otos.csv");};
             QString data_ffn(const QString &fn){ return path(data_path).filePath(fn);};
             QString yearweek(){
-                auto t = QDate::currentDate();
-                auto t_y = t.year();
-                auto t_w = t.weekNumber();
+//                auto t = QDate::currentDate();
+//                auto t_y = t.year();
+//                auto t_w = t.weekNumber();
 
+                auto t_y = year();
+                auto t_w = week();
                 return QString::number(t_y)+"-"+QString::number(t_w);
             }
+            int year(){ return 2020;}
+            int week(){ return 49;}
     };
 
     static Settings _settings;
 
     struct Hit{
         int count;
-        QString prize;
+        int prize;
+        QString currency;
         QString desc;
 
         static Hit FromCsv(const QStringList&, const QString &desc);
@@ -82,7 +87,26 @@ public:
                 if(!e.isEmpty())e+=",";
                 e+=QString::number(i);
                 }
+
             return e;
+        }
+
+        int prize_ix(const Data &d) const{
+            int x = 0; //ennyi találat
+            for(auto&i:d.numbers){
+                for(int j=0;j<5;j++) if(numbers[j]==i) x++;
+            }
+            if(x<1 || x>5) return 0;
+            return x-1;
+        }
+
+        int prizeCur(const Data &d, QString* curr) const{
+            auto pix = prize_ix(d);
+            auto h = hits[pix];
+            auto p = h.prize;
+            if(p<1) return 0;
+            if(curr) *curr = h.currency;
+            return p;
         }
 
         int number(int i) const{

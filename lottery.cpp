@@ -81,6 +81,8 @@ bool Lottery::FromFile(const QString& txt){
     static const int numbers_ix = 11;
 
     for(auto l: lines){
+        if(l.isEmpty()) continue;
+        if(l.startsWith('#')) continue;
         auto a = CsvSplit(l);
         if(a.length()<16) continue;
         Data d;
@@ -90,10 +92,11 @@ bool Lottery::FromFile(const QString& txt){
         d.week = a[week_ix].toInt(&isok);
         d.datetime = QDate::fromString(a[datetime_ix], "yyyy.MM.dd.");
 
-        d.setHit(5, Hit::FromCsv(lines.mid(hit5_ix, hit_len), "5"));
-        d.setHit(4, Hit::FromCsv(lines.mid(hit4_ix, hit_len), "4"));
-        d.setHit(3, Hit::FromCsv(lines.mid(hit3_ix, hit_len), "3"));
-        d.setHit(2, Hit::FromCsv(lines.mid(hit2_ix, hit_len), "2"));
+        d.setHit(5, Hit::FromCsv(a.mid(hit5_ix, hit_len), "5"));
+        d.setHit(4, Hit::FromCsv(a.mid(hit4_ix, hit_len), "4"));
+        d.setHit(3, Hit::FromCsv(a.mid(hit3_ix, hit_len), "3"));
+        d.setHit(2, Hit::FromCsv(a.mid(hit2_ix, hit_len), "2"));
+        d.setHit(1, {0, 0, "",""});
 
         d.setNumber(1, a[numbers_ix].toInt(&isok));
         d.setNumber(2, a[numbers_ix+1].toInt(&isok));
@@ -114,7 +117,19 @@ QStringList Lottery::CsvSplit(const QString &s)
 Lottery::Hit Lottery::Hit::FromCsv(const QStringList& lines, const QString &desc)
 {
     bool isok;
-    return {lines[0].toInt(&isok), lines[1], desc};//.toInt(&isok)
+    int count = lines[0].toInt(&isok);
+    int prize = 0;
+    QString c;
+    QRegularExpression re(R"(([\d\s]+)([a-zA-Z]+))");
+    QRegularExpressionMatch match = re.match(lines[1]);
+    if(match.hasMatch()){
+        QString p = match.captured(1).simplified().remove(' ');
+        prize = p.toInt(&isok);
+        c = match.captured(2);
+    }
+
+    Hit h {count, prize, c, desc};//.toInt(&isok)
+    return h;
 }
 
 Lottery::RefreshR Lottery::Refresh(){
@@ -272,7 +287,7 @@ QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
 
         d.append(d0);
         t++;
-    } while(t<max);
+    } while(t<max);auto a = Lottery::Refresh();
 
     Lottery::Save(d);
 

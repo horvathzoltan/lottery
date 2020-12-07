@@ -26,6 +26,8 @@ public:
     void uiSpinBoxSetValue(int i);
     void uiSpinBoxSetMinMax(int i);
     void uiSpinBoxSetMinMax(int min, int max);
+    void CreateTicket();
+    void ClearTicket();
 private:
     bool _isinited=false;
     QList<QFrame*> frames;
@@ -44,7 +46,7 @@ private:
     QList<Callout *> m_callouts;
 
 private slots:
-    void on_pushButton_data_clicked();
+    void on_pushButton_download_clicked();
     void on_pushButton_clicked();
     void on_pushButton_2_clicked();
 

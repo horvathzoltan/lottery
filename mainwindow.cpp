@@ -9,7 +9,13 @@
 #include <QtWidgets/QGraphicsView>
 
 #include <QtCharts>
-
+// TODO mennyiért lehet megjátszani a kombinációkat
+/*
+9 - 35775-(88*300) = 9375
+8 - 18550-(34*300) = 8350
+7 - 7950-(10*300) = 4950
+6 - 3975-(4*300) = 2775
+*/
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
       , ui(new Ui::MainWindow)
@@ -17,23 +23,78 @@ MainWindow::MainWindow(QWidget *parent)
     _isinited = false;
     ui->setupUi(this);
 
-    //ui->spinBox->setValue(Lottery::_settings.K);
     uiSpinBoxSetMinMax(5, 30);
     uiSpinBoxSetValue(Lottery::_settings.K);
-    //ui->spinBox->setDisabled(false);
     ui->label_yearweek->setText(Lottery::_settings.yearweek());
+
+    CreateTicket(); // a szelvény generálása
+    ClearTicket();
+
+    chart = new QChart(); // a grafikon generálása
+    chart->setTitle("gyakoriság");
+    chart->setAcceptHoverEvents(true);
+
+    chartView = new QChartView(chart);
+    chartView->setRenderHint(QPainter::Antialiasing);
+    chartView->setParent(ui->tab_2);
+    chartView->setGeometry(ui->tab_2->geometry());
+
+    auto a = Lottery::Refresh();
+
+    setUi(a); // beállítja a MAX, MAY értékeket is
+
+    _shuffled_series.setName("sorsolt");
+    _shuffled_series.setColor(Qt::blue);
+    _shuffled_series.setMarkerSize(7.0);
+    _shuffled_series.append(QPointF(0, 0));
+    _shuffled_series.append(QPointF(MAX, MAY));
+
+    chart->addSeries(&_shuffled_series);
+
+    _all_shuffled_series.setName("összes");
+    _all_shuffled_series.setColor(Qt::green);
+    _all_shuffled_series.setMarkerSize(7.0);
+    _all_shuffled_series.append(QPointF(0, 0));
+    _all_shuffled_series.append(QPointF(MAX, MAY));
+
+    chart->addSeries(&_all_shuffled_series);
+
+    connect(&_all_shuffled_series, &QLineSeries::hovered, this, &MainWindow::tooltip);
+
+
+
+    RefreshByWeek();
+
+
+    _isinited = true;
+}
+
+void MainWindow::ClearTicket(){
+    static const int Q = 5;
+    static const int R = 90/Q;
+
+    QPalette pal_w = palette();
+    QPalette pal_g = palette();
+    pal_w.setColor(QPalette::Window, Qt::white);
+    pal_g.setColor(QPalette::Background, Qt::lightGray);
+    QPalette *p;
+
+    for(int i=0;i<90;i++){
+        p = ((i/R)%2)?&pal_g:&pal_w;
+        frames[i]->setPalette(*p);
+    }
+}
+
+void MainWindow::CreateTicket(){
     static const int s = 48;
 
     static auto fi = ui->frame->fontInfo();
     static QFont font(fi.family(), s/3, fi.weight()*2, fi.italic());
     static QFont font2(fi.family(), s/5, fi.weight()/2, fi.italic());
 
-    QPalette sample_palette;
-    sample_palette.setColor(QPalette::Window, Qt::white);
-    sample_palette.setColor(QPalette::WindowText, Qt::blue);
 
-    static const int Q = 5;
-    static const int R = 90/Q;
+    QPalette pal_blue;
+    pal_blue.setColor(QPalette::WindowText, Qt::blue);
 
     for(int i=0;i<90;i++){
         int y = i/10;
@@ -58,15 +119,9 @@ MainWindow::MainWindow(QWidget *parent)
 
         QLabel *l2 = new QLabel(w);
         l2->setFont(font2);
-        l2->setPalette(sample_palette);
-        //l2->setText("WWW");
+        l2->setPalette(pal_blue);
         l2->colorCount();
-        //l2->setGeometry()
-        //l2->adjustSize();
 
-        //ax = w->width()-l2->width()-4;
-
-        //l2->move(ax, 0);
         l2->setGeometry(2, 0, 48-(4*2), 16);
         l2->setAlignment(Qt::AlignmentFlag::AlignRight);
 
@@ -75,53 +130,7 @@ MainWindow::MainWindow(QWidget *parent)
         labels2.append(l2);
 
         w->setAutoFillBackground(true);
-        QPalette pal = palette();
-        pal.setColor(QPalette::Background, Qt::lightGray);
-
-        if((i/R)%2) w->setPalette(pal);        
     }
-
-    //tab_2
-    //QChart *
-    chart = new QChart();
-    chart->setTitle("gyakoriság");
-    chart->setAcceptHoverEvents(true);
-
-    chartView = new QChartView(chart);
-    chartView->setRenderHint(QPainter::Antialiasing);
-    chartView->setParent(ui->tab_2);
-    chartView->setGeometry(ui->tab_2->geometry());
-    auto a = Lottery::Refresh();
-
-    setUi(a); // beállítja a MAX, MAY értékeket is
-
-    _shuffled_series.setName("sorsolt");
-    _shuffled_series.setColor(Qt::blue);
-    _shuffled_series.setMarkerSize(7.0);
-    _shuffled_series.append(QPointF(0, 0));
-    _shuffled_series.append(QPointF(MAX, MAY));
-
-    chart->addSeries(&_shuffled_series);
-
-    _all_shuffled_series.setName("összes");
-    _all_shuffled_series.setColor(Qt::green);
-    _all_shuffled_series.setMarkerSize(7.0);
-    _all_shuffled_series.append(QPointF(0, 0));
-    _all_shuffled_series.append(QPointF(MAX, MAY));
-
-    chart->addSeries(&_all_shuffled_series);
-
-//    connect(&_all_shuffled_series, &QLineSeries::clicked, this, &MainWindow::keepCallout);
-    connect(&_all_shuffled_series, &QLineSeries::hovered, this, &MainWindow::tooltip);
-
-
-    //QFileInfoList l = Lottery::ExclusionByWeek();
-//    auto r = Lottery::RefreshByWeek();
-//    if(r.isok)
-//        setUi(r);
-
-    RefreshByWeek();
-    _isinited = true;
 }
 
 MainWindow::~MainWindow()
@@ -148,37 +157,33 @@ void MainWindow::keepCallout(){
 void MainWindow::tooltip(QPointF point, bool state){
     if (!m_tooltip) m_tooltip = new Callout(chart);
 
-if (state) {
-    m_tooltip->setText(QString::number(point.x()+.5)+"-"+QString::number(point.y(),'f',0));
-    //m_tooltip->setText(QString("X: %1 \nY: %2 ").arg(point.x()).arg(point.y()));
-    m_tooltip->setAnchor(point);
-    m_tooltip->setZValue(11);
-    m_tooltip->updateGeometry();
-    m_tooltip->show();
-} else {
-//    m_tooltip->setText("a");
-//    m_tooltip->setAnchor(point);
-//    m_tooltip->updateGeometry();
-//    m_tooltip->show();
-    m_tooltip->hide();
-}
+    if (state) {
+        auto txt = "kombináció:\n"+QString::number(point.x()+.5)+"\n"+QString::number(point.y(),'f',0);
+        m_tooltip->setText(txt);
+        m_tooltip->setAnchor(point);
+        m_tooltip->setZValue(11);
+        m_tooltip->updateGeometry();
+        m_tooltip->show();
+    } else {
+        m_tooltip->hide();
+    }
 }
 
 void MainWindow::tooltip2(bool status, int index, QBarSet *barset){
     if (!m_tooltip) m_tooltip = new Callout(chart);
 
     if (status) {
-        m_tooltip->setText("mikmik");//(QString::number(point.x()+.5)+"-"+QString::number(point.y(),'f',0));
-        //m_tooltip->setText(QString("X: %1 \nY: %2 ").arg(point.x()).arg(point.y()));
-        //m_tooltip->setAnchor(point);
+        auto a = barset->at(index);
+        auto point = QPointF(index, a);
+
+        auto txt = "összes:\n"+QString::number(index+1)+"\n"+QString::number(a,'f',0);
+
+        m_tooltip->setText(txt);
+        m_tooltip->setAnchor(point);
         m_tooltip->setZValue(11);
         m_tooltip->updateGeometry();
         m_tooltip->show();
     } else {
-        //    m_tooltip->setText("a");
-        //    m_tooltip->setAnchor(point);
-        //    m_tooltip->updateGeometry();
-        //    m_tooltip->show();
         m_tooltip->hide();
     }
 }
@@ -197,7 +202,7 @@ void MainWindow::tooltip2(bool status, int index, QBarSet *barset){
 // TODO ha a héten le lett töltve akkor nem kell megint leszedni
 // ha az aktuálisan betöltött csv hete megfelel az aktuális hétnek, akkor az friss, nem kell tölteni
 // legyen szürke a gomb
-void MainWindow::on_pushButton_data_clicked()
+void MainWindow::on_pushButton_download_clicked()
 {
     auto ffn = Lottery::_settings.download_ffn();
     bool isok = com::helper::Downloader::Wget(
@@ -207,6 +212,8 @@ void MainWindow::on_pushButton_data_clicked()
     Lottery::_data.clear();
     auto a = Lottery::Refresh();
     setUi(a);
+    auto b = Lottery::RefreshByWeek();
+    setUi(b);
 }
 
 void MainWindow::setUi(const Lottery::RefreshR& m){
@@ -226,11 +233,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     //chart->series().clear();
     //chart->axes().detach();
 
-    if(!chart->series().isEmpty()){
-        for(auto&s:chart->series()) chart->removeSeries(s);
-
-        //chart->removeAllSeries();
-    }
+    if(!chart->series().isEmpty()) for(auto&s:chart->series()) chart->removeSeries(s);
     for(auto& a:chart->axes()) chart->removeAxis(a);
 
     QBarSeries* barseries = new QBarSeries();
@@ -247,9 +250,14 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     scatterseries->append(QPointF(MAX, MAY));
 
     //set0->append(0);
+
+    ClearTicket();
+
     QPalette pal = palette();
     pal.setColor(QPalette::Background, Qt::red);
 
+    bool frames_isok = !frames.isEmpty();
+    // az utolsót kirakni
     for(int* j:m.last){
        for(int i=0;i<5;i++){
            int n = j[i];
@@ -258,7 +266,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
             qreal x = n-.5;
             scatterseries->append(QPointF(x, y));
 
-            frames[n-1]->setPalette(pal);
+            if(frames_isok) frames[n-1]->setPalette(pal);
         }
     }
 
@@ -285,13 +293,14 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
 
     categories.append(QString::number(0)); //1-90
 
+    bool labels2_isok = !labels2.isEmpty();
     for(int i=0;i<MAX;i++){
         categories.append(QString::number(i+1)); //1-90
 
         auto x = m.histogram[i];
         auto a = QString::number(x);
 
-        labels2[i]->setText(a); // labelek a táblában
+        if(labels2_isok) labels2[i]->setText(a); // labelek a táblában
 
 //        int R = 90/5;
 //        int o = (i/R);
@@ -304,6 +313,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
             qreal y = m.histograms[n][i];
             lineseries[n]->append(QPointF(x, y));
         }
+
     }
 
     categories.append(QString::number(MAX+1));
@@ -449,7 +459,7 @@ void MainWindow::setUi(const Lottery::ShuffleR& m)
 
 void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     ui->listWidget->clear();
-    QString txt = m.ToString();
+    QString txt = m.ToString();    
 
     qreal may=0;
     for(auto&i:m.num){if(i.hist>may) may=i.hist;}
@@ -458,16 +468,45 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
 //    int r;
 //    if(Lottery::_data.isEmpty()) r=1;
 //    else r = (m.shuffnum/Lottery::_data.size())+5;
+    auto last = Lottery::_data.last();
     ui->label_comb->setText(txt);
+
+    auto t_y = Lottery::_settings.year();
+    auto t_w = Lottery::_settings.week();
+    bool isok = last.year == t_y && last.week == t_w;
+
+    int sum_prize=0;
+    int sum_n=0;
+    QString sum_curr;
     for(auto&i:m.comb){
-        ui->listWidget->addItem(i.NumbersToString());
+        auto txt = i.NumbersToString();
+
+        if(isok){
+            QString curr;
+            auto v = last.prizeCur(i, &curr);
+            if(v>0){
+                txt += "-"+ QString::number(v) + ' ' + curr;
+                sum_prize += v;
+                if(sum_curr.isEmpty()) sum_curr = curr;
+                sum_n++;
+            }
+
+        }
+
+        if(last.year == t_y && last.week == t_w)
+
+        ui->listWidget->addItem(txt);
     }
 
+
     _all_shuffled_series.clear();
-    //chart->removeSeries(&_all_shuffled_series);
+    _all_shuffled_series.append(QPointF(0, 0));
+    _all_shuffled_series.append(QPointF(MAX, MAY));
+    chart->removeSeries(&_all_shuffled_series);
     QString ctxt;
     int o = 0;
-    for(auto&i:m.num){
+
+    for(auto&i:m.num){ // felsorolja a kombináció számait és felrakja a zöld pettyeket
         qreal x = i.num-.5;
         _all_shuffled_series.append(QPointF(x, r2?i.hist*r2:6));
         if(!ctxt.isEmpty()) ctxt+=",";
@@ -479,8 +518,15 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
 
     }
 
+    if(sum_prize>0){
+        ctxt += '\n'+ QString::number(sum_prize) + ' ' + sum_curr;
+        ctxt += '\n'+ QString::number(sum_n)+'/'+QString::number(m.comb.length())+' '+"db";
+        ctxt += "\narány:"+ QString::number(sum_n/(qreal)m.comb.length());
+    }
+
+
     ui->label_combnum->setText(ctxt);
-    //chart->addSeries(&_all_shuffled_series);
+    chart->addSeries(&_all_shuffled_series);
 }
 
 //delete
@@ -506,7 +552,7 @@ void MainWindow::on_spinBox_valueChanged(int arg1)
 }
 
 void MainWindow::RefreshByWeek(){
-    auto r = Lottery::RefreshByWeek();
+    auto r = Lottery::RefreshByWeek(); // ez betölti
     if(r.isok)
         setUi(r);
 }
