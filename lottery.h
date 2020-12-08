@@ -16,6 +16,8 @@ class Lottery
 public:
     struct Settings{
         private:
+            QDate _date = QDate::currentDate();
+
             const QString appname = "lottery_data";
             const QString download_dir = "download";
             const QString data_dir = "data";
@@ -24,7 +26,8 @@ public:
             const QString home_fn = home.filePath(appname);
 
             const QString download_path = QDir(home_fn).filePath(download_dir);
-            const QString data_path = QDir(QDir(home_fn).filePath(data_dir)).filePath(yearweek());
+            QString data_path() { return QDir(QDir(home_fn).filePath(data_dir))
+                                            .filePath(yearweek());}
             QDir path(const QString& fn){
                 auto p = QDir(fn);
                 if(!p.exists()) p.mkpath(fn);
@@ -32,7 +35,7 @@ public:
             };
 
 
-        public:
+        public:            
             int max = 30;
             int c_min = 10;
             int c_max = 1000;
@@ -42,9 +45,11 @@ public:
             QString url2= "http://www.lottoszamok.net/otoslotto/";
             QString url = "https://bet.szerencsejatek.hu/cmsfiles/otos.csv";
             QString download_ffn(){ return path(download_path).filePath("otos.csv");};
-            QString data_ffn(const QString &fn){ return path(data_path).filePath(fn);};
+            QString data_ffn(const QString &fn){ return path(data_path()).filePath(fn);};
+
+            void setDate(QDate d){_date = d;};
             QString yearweek(int *y = nullptr, int *w = nullptr){
-                auto t = QDate::currentDate();
+                auto t = _date;
                 auto t_y = t.year();
                 auto t_w = t.weekNumber();
 
@@ -168,7 +173,7 @@ public:
 
     //static QSet<int> _shuffled;
     Lottery();
-    static bool FromFile(const QString& fp);
+    static bool FromFile(const QString& fp, int n);
     static QStringList CsvSplit(const QString& s);
 
     struct RefreshR
@@ -181,7 +186,7 @@ public:
         int max_y;
     };
 
-    static RefreshR Refresh();
+    static RefreshR Refresh(int maxline);
 
     struct Occurence{
         int num;

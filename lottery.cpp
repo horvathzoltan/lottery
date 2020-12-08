@@ -37,6 +37,7 @@ QFileInfoList Lottery::ExclusionByWeek(){
     return e;
 }
 
+// az aktuális héthez tartozó generált adatokat tölti be és frissíti
 Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
     Lottery::RefreshByWeekR nullelem{0, {},{},false};
 //    QString data_ffn = Lottery::_settings.data_ffn("");
@@ -64,7 +65,7 @@ Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
     return {fd.count(), r.num, r.comb, r.isok};
 }
 
-bool Lottery::FromFile(const QString& txt){
+bool Lottery::FromFile(const QString& txt, int maxline){
     //auto txt = com::helper::TextFileHelper::load(fp);
     auto lines = com::helper::StringHelper::toStringList(txt);
 
@@ -80,11 +81,15 @@ bool Lottery::FromFile(const QString& txt){
     static const int hit_len = 2;
     static const int numbers_ix = 11;
 
+    // elől van a legfrissebb
+    auto drop = lines.count()-maxline;
+    int linecount = 0;
     for(auto l: lines){
         if(l.isEmpty()) continue;
         if(l.startsWith('#')) continue;
         auto a = CsvSplit(l);
         if(a.length()<16) continue;
+        if(maxline>0 && linecount++<drop) continue;
         Data d;
         bool isok;
 
@@ -132,7 +137,8 @@ Lottery::Hit Lottery::Hit::FromCsv(const QStringList& lines, const QString &desc
     return h;
 }
 
-Lottery::RefreshR Lottery::Refresh(){
+// az adatfájlt tölti be
+Lottery::RefreshR Lottery::Refresh(int maxline){
     ////https://bet.szerencsejatek.hu/cmsfiles/otos.csv
     //com::helper::Downloader d;
     static Lottery::RefreshR nullobj{false, {0}, {{0},{0},{0},{0},{0}}, {{}}, 0, 0};
@@ -142,7 +148,7 @@ Lottery::RefreshR Lottery::Refresh(){
 //    if(!isok) return nullobj;
     auto ffn = Lottery::_settings.download_ffn();
     auto txt = com::helper::TextFileHelper::load(ffn);
-    bool isok = Lottery::FromFile(txt);
+    bool isok = Lottery::FromFile(txt, maxline);
     if(!isok) return nullobj;
 
     Lottery::RefreshR r;
@@ -287,8 +293,9 @@ QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
 
         d.append(d0);
         t++;
-    } while(t<max);auto a = Lottery::Refresh();
+    } while(t<max);
 
+    //auto a = Lottery::Refresh(-1);
     Lottery::Save(d);
 
     return d;
