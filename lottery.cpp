@@ -4,6 +4,7 @@
 #include "common/helper/downloader/downloader.h"
 #include "common/helper/textfilehelper/textfilehelper.h"
 #include <QDir>
+#include <QSet>
 #include <QThread>
 #include <random>
 
@@ -14,7 +15,7 @@ Lottery::Lottery()
 
 Lottery::Settings Lottery::_settings;
 QVarLengthArray<Lottery::Data> Lottery::_data;
-//QSet<int> Lottery::_shuffled;
+Lottery::Data Lottery::_next;
 
 QFileInfoList Lottery::DataFileInfoListByWeek(){
     QString data_ffn = Lottery::_settings.data_ffn("");
@@ -39,7 +40,7 @@ QFileInfoList Lottery::ExclusionByWeek(){
 
 // az aktuális héthez tartozó generált adatokat tölti be és frissíti
 Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
-    Lottery::RefreshByWeekR nullelem{0, {},{},false};
+    Lottery::RefreshByWeekR nullelem{0, {},{},false, 0, 0};
 //    QString data_ffn = Lottery::_settings.data_ffn("");
 //    QDir dir(data_ffn);
 //    auto fl = dir.entryInfoList(QDir::Filter::Files);
@@ -61,8 +62,42 @@ Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
         }
     }
     if(fd.isEmpty()) return nullelem;
+    int hitcnt = 0;
+    int besthit = 0;
+
+    if(!Lottery::_data.isEmpty())
+    {
+        // TODO adni egy listát a találatokról - az fd-ben lévő index remek lenne
+        if(_next.Numbers()[0])
+            besthit = FindBestHit(fd, Lottery::_next.Numbers(), &hitcnt);
+    }
     auto r = Lottery::Generate2(fd);
-    return {fd.count(), r.num, r.comb, r.isok};
+    return {fd.count(), r.num, r.comb, r.isok, besthit, hitcnt};
+}
+
+int Lottery::FindBestHit(const QVector<Lottery::Data>& fd, int* numbers, int* hitcnt){
+    int maxhit = 0;
+    int hitcount = 0;
+
+    for(auto&i:fd){
+        int h = 0;
+        for(int j=0;j<5;j++){
+            int n = i.number(j+1);
+            for(int k=0;k<5;k++){
+                if(n==numbers[k])
+                    h++;
+            }
+        }
+        if(h>maxhit){
+            maxhit = h;
+            hitcount=1;
+        }
+        else if(h==maxhit){
+            hitcount++;
+        }
+    }
+    if(hitcnt) *hitcnt = hitcount;
+    return maxhit;
 }
 
 bool Lottery::FromFile(const QString& txt, int maxline){
@@ -81,6 +116,8 @@ bool Lottery::FromFile(const QString& txt, int maxline){
     static const int hit_len = 2;
     static const int numbers_ix = 11;
 
+    for(int i=0;i<5;i++){_next.setNumber(i+1, 0);}
+
     // elől van a legfrissebb
     auto drop = lines.count()-maxline;
     int linecount = 0;
@@ -89,7 +126,10 @@ bool Lottery::FromFile(const QString& txt, int maxline){
         if(l.startsWith('#')) continue;
         auto a = CsvSplit(l);
         if(a.length()<16) continue;
-        if(maxline>0 && linecount++<drop) continue;
+        linecount++;
+        if(maxline>0 && linecount<drop) continue;
+
+        //if(maxline>0 && linecount++<drop) continue;
         Data d;
         bool isok;
 
@@ -109,7 +149,15 @@ bool Lottery::FromFile(const QString& txt, int maxline){
         d.setNumber(4, a[numbers_ix+3].toInt(&isok));
         d.setNumber(5, a[numbers_ix+4].toInt(&isok));
 
-        _data.append(d);
+  //      _data.append(d);
+        if(maxline<=0)
+            _data.append(d);
+        else if(maxline>0 && linecount>drop)
+            _data.append(d);
+        else if(maxline>0 && linecount==drop)
+            _next = d;
+            //for(int i=0;i<5;i++){_lastnum[i]=d.number(i+1);}
+
     }
     return size_orioginal<_data.size();
 }

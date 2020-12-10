@@ -60,7 +60,7 @@ public:
 
     };
 
-    static Settings _settings;
+    static Settings _settings;    
 
     struct Hit{
         int count;
@@ -160,6 +160,7 @@ public:
         }
 
     };
+    static Data _next;
 
 //    struct DataAscByDate
 //    {
@@ -221,15 +222,18 @@ public:
         int shuffnum;
         QVector<Occurence> num; // a húzás leggyakoribb számai 5-10
         QVector<Data> comb; // a leggyakoribb számokból képzett kombinációk
-        bool isok;
+        bool isok;        
+        int besthit;
+        int hitcnt;
 
         QString ToString() const {
-            return QString("%2 - %1 db").arg(comb.count()).arg(shuffnum);
+            return QString::number(shuffnum);//QString("%2 - %1 db").arg(comb.count()).arg(shuffnum);
         }
     };
     static RefreshByWeekR RefreshByWeek();
     static QFileInfoList ExclusionByWeek();
     static QFileInfoList DataFileInfoListByWeek();
+    static int FindBestHit(const QVector<Lottery::Data> &fd, int* numbers, int* hitcnt = nullptr);
 };
 
 #endif // LOTTERY_H

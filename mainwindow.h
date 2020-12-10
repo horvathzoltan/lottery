@@ -31,6 +31,7 @@ public:
     void uiWeekSpinBoxSetValue(int i);
     void uiWeekSpinBoxSetMinMax(int min, int max);
     void on_week_valueChanged(int arg1);
+    void resetUi(const Lottery::RefreshByWeekR &m);
 private:
     bool _isinited=false;
     QList<QFrame*> frames;

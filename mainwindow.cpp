@@ -21,7 +21,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     _isinited = false;
     ui->setupUi(this);
-    //Lottery::_settings.setDate(QDate::currentDate());
+
     uiCombinationsSpinBoxSetMinMax(5, 30);
     uiCombinationsSpinBoxSetValue(Lottery::_settings.K);
     ui->label_yearweek->setText(Lottery::_settings.yearweek());
@@ -39,6 +39,15 @@ MainWindow::MainWindow(QWidget *parent)
     chartView->setGeometry(ui->tab_2->geometry());
 
     auto a = Lottery::Refresh(-1);
+//    int y = Lottery::_data.last().year;
+//    int w = Lottery::_data.last().week;
+    //QDate date = QDate::fromString(QString::number(y)+"-01-01", Qt::DateFormat::ISODate).addDays((w-1)*7);
+    //Lottery::_settings.setDate(date);
+    //int year, week;
+    //auto t_txt = Lottery::_settings.yearweek(&year, &week);
+
+    //bool isok = last.year == year && last.week == week;
+
 
     uiWeekSpinBoxSetMinMax(1, Lottery::_data.count());
     uiWeekSpinBoxSetValue(Lottery::_data.count());
@@ -457,6 +466,13 @@ void MainWindow::setUi(const Lottery::ShuffleR& m)
     //chart->addSeries(&_shuffled_series);
 }
 
+void MainWindow::resetUi(const Lottery::RefreshByWeekR& m){
+    ui->listWidget->clear();
+    ui->label_comb->setText("");
+    ui->label_combnum->setText("");
+
+}
+
 void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     ui->listWidget->clear();
     QString txt = m.ToString();    
@@ -468,12 +484,13 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
 //    int r;
 //    if(Lottery::_data.isEmpty()) r=1;
 //    else r = (m.shuffnum/Lottery::_data.size())+5;
+    if(Lottery::_data.isEmpty()) return;
     auto last = Lottery::_data.last();
     ui->label_comb->setText(txt);
     int year, week;
     auto t_txt = Lottery::_settings.yearweek(&year, &week);
 
-    bool isok = last.year == year && last.week == week;
+    bool isok = last.year <= year && last.week <= week;
 
     int sum_prize=0;
     int sum_n=0;
@@ -483,7 +500,8 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
 
         if(isok){
             QString curr;
-            auto v = last.prizeCur(i, &curr);
+            //TODO nem a lastban kell keresni hanem a nextben - ha ki van már húzva
+            auto v = Lottery::_next.prizeCur(i, &curr);
             if(v>0){
                 txt += "-"+ QString::number(v) + ' ' + curr;
                 sum_prize += v;
@@ -524,10 +542,14 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
         ctxt += "\narány:"+ QString::number(sum_n/(qreal)m.comb.length());
     }
     else{ //  még csak a szelvények árát tudjuk
-        ctxt += '\n'+ QString::number(sum_ticket_price)+' ' + Lottery::_settings.ticket_curr;
-         ctxt += '\n'+ QString::number(m.comb.length())+' '+"db";
+        ctxt += '\n'+ QString::number(m.comb.length())+' '+"db";
+        ctxt += ' '+ QString::number(sum_ticket_price)+' ' + Lottery::_settings.ticket_curr;
+
     }
 
+    if(m.besthit>1){
+        ctxt+='\n'+QString::number(m.besthit)+"-s "+QString::number(m.hitcnt)+"db";
+    }
 
     ui->label_combnum->setText(ctxt);
     chart->addSeries(&_all_shuffled_series);
@@ -548,6 +570,8 @@ void MainWindow::RefreshByWeek(){
     auto r = Lottery::RefreshByWeek(); // ez betölti
     if(r.isok)
         setUi(r);
+    else
+        resetUi(r);
 }
 
 // clipboard
@@ -658,7 +682,7 @@ void MainWindow::on_week_valueChanged(int arg1)
     QDate date = QDate::fromString(QString::number(l.year)+"-01-01", Qt::DateFormat::ISODate).addDays(l.week*7);
 
     Lottery::_settings.setDate(date);
-    // TODO ha nincs adat kint marad a zelőző, ne maradjon
+
     RefreshByWeek();
     lock=false;
 }
