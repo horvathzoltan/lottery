@@ -500,10 +500,10 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
 
         if(isok){
             QString curr;
-            //TODO nem a lastban kell keresni hanem a nextben - ha ki van már húzva
-            auto v = Lottery::_next.prizeCur(i, &curr);
+            int hn;
+            auto v = Lottery::_next.prizeCur(i, &curr, &hn);
             if(v>0){
-                txt += "-"+ QString::number(v) + ' ' + curr;
+                txt += ' '+QString::number(hn+1)+"-s("+ QString::number(v) + ' ' + curr+')';
                 sum_prize += v;
                 if(sum_curr.isEmpty()) sum_curr = curr;
                 sum_n++;
@@ -529,6 +529,11 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
         if(!(o%7)) if(!ctxt.isEmpty()) ctxt+=com::helper::StringHelper::NewLine;
 
         ctxt += QString::number(i.num);
+        if(Lottery::_next.Numbers()[0]){
+            bool o3 = false;
+            for(int j=1;j<=5;j++) if(Lottery::_next.number(j)==i.num){ o3 = true;break;}
+            if(o3) ctxt+='*';
+        }
 
         o++;
 
@@ -539,7 +544,7 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
         ctxt += '\n'+ QString::number(sum_prize)+'/' +QString::number(sum_ticket_price)+' ' + sum_curr;
         ctxt += '\n'+ QString::number(sum_prize-sum_ticket_price)+' ' + sum_curr;
         ctxt += '\n'+ QString::number(sum_n)+'/'+QString::number(m.comb.length())+' '+"db";
-        ctxt += "\narány:"+ QString::number(sum_n/(qreal)m.comb.length());
+        ctxt += " arány:"+ QString::number(sum_n/(qreal)m.comb.length());
     }
     else{ //  még csak a szelvények árát tudjuk
         ctxt += '\n'+ QString::number(m.comb.length())+' '+"db";
@@ -547,9 +552,24 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
 
     }
 
-    if(m.besthit>1){
-        ctxt+='\n'+QString::number(m.besthit)+"-s "+QString::number(m.hitcnt)+"db";
-    }
+    // milyen húzások értek el valamilyen találatot?
+    //if(!m.besthits.isEmpty()){
+        int j=0;
+        for(auto&i:m.besthits){
+            j++;
+            if(!i.isEmpty()){
+                QString ntxt =QString::number(j)+"-s";
+                ctxt+='\n'+ntxt+' '+QString::number(i.count())+"db";
+                ui->listWidget->addItem(ntxt);
+                //i.
+                for(auto&k:i){
+                    QString mtxt = QString::number(k.ix+1)+'-'+k.numbers.ToString();
+                    ui->listWidget->addItem(mtxt);
+                }
+            }
+        }
+        //ctxt+='\n'+QString::number(m.besthit)+"-s "+QString::number(m.hitcnt)+"db";
+    //}
 
     ui->label_combnum->setText(ctxt);
     chart->addSeries(&_all_shuffled_series);
@@ -686,3 +706,5 @@ void MainWindow::on_week_valueChanged(int arg1)
     RefreshByWeek();
     lock=false;
 }
+
+

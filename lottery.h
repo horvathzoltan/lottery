@@ -71,6 +71,33 @@ public:
         static Hit FromCsv(const QStringList&, const QString &desc);
     };
 
+    struct Numbers{
+        int numbers[5];
+
+        QString ToString() const {
+            QString e;
+            for(auto&i:numbers){
+                if(!e.isEmpty())e+=",";
+                e+=QString::number(i);
+            }
+
+            return e;
+        }
+
+        bool operator== (const Numbers& r){
+            int o=0;
+            for(auto&i:numbers){
+                for(auto&j:r.numbers) if(i==j) {o++;break;}
+            }
+            return o==5;
+        };
+
+        void sort(){std::sort(numbers, numbers+5);}
+
+    };
+
+
+
     struct Data{ //lottery
         int year;
         int week;
@@ -87,6 +114,9 @@ public:
         }
 
         int* Numbers() {return numbers;}
+
+        //void NumbersSort(){std::sort(numbers, numbers+5);}
+
 
         QString NumbersToString() const {
             QString e;
@@ -107,8 +137,9 @@ public:
             return x-1;
         }
 
-        int prizeCur(const Data &d, QString* curr) const{
+        int prizeCur(const Data &d, QString* curr, int* pixe = nullptr) const{
             auto pix = prize_ix(d);
+            if(pixe) *pixe = pix;
             auto h = hits[pix];
             auto p = h.prize;
             if(p<1) return 0;
@@ -218,13 +249,17 @@ public:
     static QVector<Occurence> SelectByOccurence(const QVector<Data> &d, int i);
     static ShuffleR Generate(int *p, int k, int max);
     static ShuffleR Generate2(const QVector<Lottery::Data>& d);
+    struct BestHit{
+        int ix;
+        Numbers numbers;
+    };
+
     struct RefreshByWeekR{
         int shuffnum;
         QVector<Occurence> num; // a húzás leggyakoribb számai 5-10
         QVector<Data> comb; // a leggyakoribb számokból képzett kombinációk
-        bool isok;        
-        int besthit;
-        int hitcnt;
+        bool isok;
+        QVector<QVector<struct Lottery::BestHit>> besthits;
 
         QString ToString() const {
             return QString::number(shuffnum);//QString("%2 - %1 db").arg(comb.count()).arg(shuffnum);
@@ -233,7 +268,9 @@ public:
     static RefreshByWeekR RefreshByWeek();
     static QFileInfoList ExclusionByWeek();
     static QFileInfoList DataFileInfoListByWeek();
-    static int FindBestHit(const QVector<Lottery::Data> &fd, int* numbers, int* hitcnt = nullptr);
+
+
+    static QVector<QVector<BestHit>> FindBestHit(const QVector<Lottery::Data> &fd, int* numbers);
 };
 
 #endif // LOTTERY_H
