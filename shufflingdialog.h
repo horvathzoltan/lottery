@@ -37,7 +37,7 @@ class WorkerThread : public QThread
 public:
     int *p;
     int k=7;
-    int max = 1000;
+    int max = Lottery::_settings.shuff_max;
     Lottery::ShuffleR r;
     void run() override
     {

@@ -35,10 +35,12 @@ public:
             };
 
 
-        public:            
+        public:
+            int filter = 2;
             int max = 30;
+            int shuff_max = 100;//10000;
             int c_min = 10;
-            int c_max = 1000;
+            int c_max = 1000000;
             int K = 6;
             int ticket_price = 300;
             QString ticket_curr = "Ft";
@@ -72,7 +74,10 @@ public:
     };
 
     struct Numbers{
-        int numbers[5];
+        private:
+            int numbers[5];
+        public:
+            qreal weight = 1;
 
         QString ToString() const {
             QString e;
@@ -82,6 +87,29 @@ public:
             }
 
             return e;
+        }
+
+        QString ToString(const Numbers& n2) const {
+            QString e;
+            for(auto&i:numbers){
+                if(!e.isEmpty())e+=",";
+                e+=QString::number(i);
+                if(n2.contains(i)) e+='*';
+            }
+
+            return e;
+        }
+
+        bool contains(int i) const {auto a = std::find(numbers, numbers+5,i); return a!=numbers+5;}
+
+        void WeightByParity(const QVector<qreal>& w)
+        {
+            weight *= w[NumbersEven()];
+        }
+
+        void WeightByPentilis(const QVector<qreal>& w)
+        {
+            weight *= w[NumbersPentilis()];
         }
 
         bool operator== (const Numbers& r){
@@ -94,57 +122,24 @@ public:
 
         void sort(){std::sort(numbers, numbers+5);}
 
-    };
+        int NumbersEven()const{int p=0;for(auto&i:numbers)if(!(i%2))p++;return p;}
 
+        int NumbersPentilis()const{
+            QSet<int> pen;
+            static const int r = 90/5;//18
+            for(auto&i:numbers) pen.insert(i/r); // pentilis
 
-
-    struct Data{ //lottery
-        int year;
-        int week;
-        QDate datetime;
-    private:
-        Hit hits[5];
-        int numbers[5];
-
-    public:
-        void setHit(int i, Hit h){
-            int ix = i-1;
-            if(ix<0 || ix>=5) return;
-            hits[ix] = h;
+            return pen.count(); // a külömbözők száma
         }
 
-        int* Numbers() {return numbers;}
-
-        //void NumbersSort(){std::sort(numbers, numbers+5);}
-
-
-        QString NumbersToString() const {
-            QString e;
-            for(auto&i:numbers){
-                if(!e.isEmpty())e+=",";
-                e+=QString::number(i);
-                }
-
-            return e;
-        }
-
-        int prize_ix(const Data &d) const{
+        // ennyies a találat
+        int HitNum() const{
             int x = 0; //ennyi találat
-            for(auto&i:d.numbers){
+            for(auto&i:numbers){
                 for(int j=0;j<5;j++) if(numbers[j]==i) x++;
             }
             if(x<1 || x>5) return 0;
             return x-1;
-        }
-
-        int prizeCur(const Data &d, QString* curr, int* pixe = nullptr) const{
-            auto pix = prize_ix(d);
-            if(pixe) *pixe = pix;
-            auto h = hits[pix];
-            auto p = h.prize;
-            if(p<1) return 0;
-            if(curr) *curr = h.currency;
-            return p;
         }
 
         int number(int i) const{
@@ -153,11 +148,42 @@ public:
             return numbers[ix];
         }
 
+
+
         void setNumber(int i, int n){
             int ix = i-1;
             if(ix<0 || ix>=5) return;
             numbers[ix] = n;
         }
+    };
+
+
+
+    struct Data{ //lottery
+        int year;
+        int week;
+        QDate datetime;
+        Numbers num;
+    private:
+        Hit hits[5];
+
+    public:
+        void setHit(int i, Hit h){
+            int ix = i-1;
+            if(ix<0 || ix>=5) return;
+            hits[ix] = h;
+        }       
+
+        int prizeCur(const Data &d, QString* curr, int* pixe = nullptr) const{
+            auto pix = num.HitNum();
+            if(pixe) *pixe = pix;
+            auto h = hits[pix];
+            auto p = h.prize;
+            if(p<1) return 0;
+            if(curr) *curr = h.currency;
+            return p;
+        }
+
 
         static bool AscByDate( const Data& l, const Data& r )
         {
@@ -165,45 +191,11 @@ public:
             return l.year<r.year;
         }
 
-        bool ParityTest(const QSet<int>& p){
-            int n = 0;
-            for(auto&i:numbers){
-                if(!(i%2)) n++;
-            }
-            return p.contains(n);
-        };
-
-        bool PentilisTest(const QSet<int>& p){
-            QSet<int> pen;
-            static const int r = 90/5; //18
-            for(auto&i:numbers){
-                auto pn = i/r; // pentilis
-                pen.insert(pn);
-            }
-            return p.contains(pen.count());
-
-        }
-
-        bool TestAll(){
-            if(!ParityTest({2,3})) return false;
-            if(!PentilisTest({3,4})) return false;
-            return true;
-        }
-
     };
     static Data _next;
 
-//    struct DataAscByDate
-//    {
-//        bool operator()( const Data& l, const Data& r ) const {
-//            if(l.year == r.year) return (l.week<r.week);
-//            return l.year<r.year;
-//        }
-//    };
+    static QVector<Data> _data;
 
-    static QVarLengthArray<Data> _data;
-
-    //static QSet<int> _shuffled;
     Lottery();
     static bool FromFile(const QString& fp, int n);
     static QStringList CsvSplit(const QString& s);
@@ -211,9 +203,9 @@ public:
     struct RefreshR
     {
         bool isOk = false;
-        QVarLengthArray<int> histogram;
-        QVarLengthArray<int> histograms[5];
-        QVarLengthArray<int*> last;
+        QVector<qreal> histogram;
+        QVector<qreal> histograms[5];
+        QVector<Numbers> last;
         int min_y;
         int max_y;
     };
@@ -222,7 +214,7 @@ public:
 
     struct Occurence{
         int num;
-        int hist;
+        qreal hist;
 
         bool operator < (const Occurence& r){ return num < r.num;};
     };
@@ -231,6 +223,7 @@ public:
     {
         QVector<Occurence> num; // a húzás leggyakoribb számai 5-10
         QVector<Data> comb; // a leggyakoribb számokból képzett kombinációk
+        //QVector<qreal> weight;
         bool isok;
     };
 
@@ -238,17 +231,16 @@ public:
 
     static void Save(const QVector<Data>&);
 
-    static QVarLengthArray<int> Histogram(
-        const QVector<Data>::const_iterator begin,
-        const QVector<Data>::const_iterator end, int x =0);
+    static QVector<qreal> Histogram(const QVector<Data>& d, int x);
+
     static QVector<QVector<int>> SelectByCombination(const QVector<Occurence>& p, int k);
     static QVector<QVector<int>> Combination(int N, int K);
-    static QVector<Data> Filter(QVector<QVector<int>>& p);
+    static QVector<Data> ToData(QVector<QVector<int>>& p);
 
 
-    static QVector<Occurence> SelectByOccurence(const QVector<Data> &d, int i);
+    static QVector<Occurence> SelectByOccurence(QVector<Data> &d, int i);
     static ShuffleR Generate(int *p, int k, int max);
-    static ShuffleR Generate2(const QVector<Lottery::Data>& d);
+    static ShuffleR Generate2(QVector<Lottery::Data>& d);
     struct BestHit{
         int ix;
         Numbers numbers;
@@ -260,6 +252,8 @@ public:
         QVector<Data> comb; // a leggyakoribb számokból képzett kombinációk
         bool isok;
         QVector<QVector<struct Lottery::BestHit>> besthits;
+        QVector<Numbers> mweights;
+        int mweight;
 
         QString ToString() const {
             return QString::number(shuffnum);//QString("%2 - %1 db").arg(comb.count()).arg(shuffnum);
@@ -270,7 +264,17 @@ public:
     static QFileInfoList DataFileInfoListByWeek();
 
 
-    static QVector<QVector<BestHit>> FindBestHit(const QVector<Lottery::Data> &fd, int* numbers);
+    static QVector<QVector<BestHit>> FindBestHit(const QVector<Lottery::Data> &fd,const Numbers& numbers);
+    //static QVector<qreal> SumWeight(const QVector<QVector<qreal>>&w);
+
+    static void Weight(QVector<Data>* d);
+    static void WeightClear(QVector<Data> *d);
+    static void WeightByParity(QVector<Data>* d);
+    static void WeightByPentilis(QVector<Data>* d);
+
+    static QVector<qreal> WeightsByParity();
+    static QVector<qreal> WeightsByPentilis();
+    static QVector<Lottery::Numbers> FindByMaxWeight(const QVector<Lottery::Data> &fd, int *maxweight);
 };
 
 #endif // LOTTERY_H

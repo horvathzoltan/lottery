@@ -32,6 +32,9 @@ public:
     void uiWeekSpinBoxSetMinMax(int min, int max);
     void on_week_valueChanged(int arg1);
     void resetUi(const Lottery::RefreshByWeekR &m);
+    void uiFilterSpinBoxSetValue(int i);
+    void uiFilterSpinBoxSetMinMax(int min, int max);
+    void on_filter_valueChanged(int arg1);
 private:
     bool _isinited=false;
     QList<QFrame*> frames;
@@ -65,6 +68,10 @@ private slots:
     void on_pushButton_wminus_clicked();
 
     void on_pushButton_wplus_clicked();
+
+    void on_pushButton_fminus_clicked();
+
+    void on_pushButton_3_clicked();
 
 public slots:
     void keepCallout();

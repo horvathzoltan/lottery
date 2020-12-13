@@ -14,7 +14,7 @@ Lottery::Lottery()
 }
 
 Lottery::Settings Lottery::_settings;
-QVarLengthArray<Lottery::Data> Lottery::_data;
+QVector<Lottery::Data> Lottery::_data;
 Lottery::Data Lottery::_next;
 
 QFileInfoList Lottery::DataFileInfoListByWeek(){
@@ -40,7 +40,7 @@ QFileInfoList Lottery::ExclusionByWeek(){
 
 // az aktuális héthez tartozó generált adatokat tölti be és frissíti
 Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
-    Lottery::RefreshByWeekR nullelem{0, {},{},false, {}};
+    Lottery::RefreshByWeekR nullelem{0, {},{},false, {}, {}, 0};
 //    QString data_ffn = Lottery::_settings.data_ffn("");
 //    QDir dir(data_ffn);
 //    auto fl = dir.entryInfoList(QDir::Filter::Files);
@@ -57,36 +57,54 @@ Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
             if(l.count()<5) continue;
             Lottery::Data d0;
             bool isok;
-            for(int k=0;k<5;k++) d0.setNumber(k+1, l[k].toInt(&isok));
+            for(int k=0;k<5;k++) d0.num.setNumber(k+1, l[k].toInt(&isok));
             fd.append(d0);
         }
     }
     if(fd.isEmpty()) return nullelem;
-    QVector<QVector<BestHit>> besthits;
+
+    Weight(&fd);
+    int maxweight;
+    QVector<Numbers> n = FindByMaxWeight(fd, &maxweight);
+
+    QVector<QVector<BestHit>> besthits;    
 
     if(!Lottery::_data.isEmpty())
     {
-        // TODO adni egy listát a találatokról - az fd-ben lévő index remek lenne
-        if(_next.Numbers()[0])
-            besthits = FindBestHit(fd, Lottery::_next.Numbers());
+        if(_next.num.number(1))
+            besthits = FindBestHit(fd, Lottery::_next.num);
     }
+
     auto r = Lottery::Generate2(fd);
-    return {fd.count(), r.num, r.comb, r.isok, besthits};
+    return {fd.count(), r.num, r.comb, r.isok, besthits, n, maxweight};
 }
 
-QVector<QVector<Lottery::BestHit>> Lottery::FindBestHit(const QVector<Lottery::Data>& fd, int* numbers){
+QVector<Lottery::Numbers> Lottery::FindByMaxWeight(const QVector<Lottery::Data>& fd, int* maxweight){
+    int mw =0; for(auto&i:fd)if(i.num.weight>mw) mw = i.num.weight;
+    if(maxweight)*maxweight=mw;
+    QVector<Numbers> n;
+    if(mw>0) for(auto&i:fd)if(i.num.weight==mw) n.append(i.num);
+    return n;
+}
+
+QVector<QVector<Lottery::BestHit>> Lottery::FindBestHit(const QVector<Lottery::Data>& fd,const Numbers& numbers){
     QVector<QVector<BestHit>> e(5);
     int h, ix=0;
     Lottery::BestHit bhit;
+
+    auto wh = WeightsByParity();
+    auto wp = WeightsByPentilis();
+
     for(auto&i:fd){
         ix++;
         h = 0;
         for(int j=0;j<5;j++){
-            int n = i.number(j+1);
+            int n = i.num.number(j+1);
             bhit.ix = ix;
-            bhit.numbers.numbers[j]=n;
+            //bhit.numbers = i.num;
+            bhit.numbers.setNumber(j+1,n);
             for(int k=0;k<5;k++){
-                if(n==numbers[k]) h++;
+                if(n==numbers.number(k+1)) h++;
             }
         }
 
@@ -94,9 +112,12 @@ QVector<QVector<Lottery::BestHit>> Lottery::FindBestHit(const QVector<Lottery::D
             bool o=false;
             for(auto&i:e[h-1]) if(i.numbers==bhit.numbers) {o=true;break;}
 
+            bhit.numbers.WeightByParity(wh);
+            bhit.numbers.WeightByPentilis(wp);
+
             if(!o){
                 bhit.numbers.sort();
-                e[h-1].append(bhit);
+                e[h-1].append(bhit);                                
             }
         }
     }
@@ -119,7 +140,7 @@ bool Lottery::FromFile(const QString& txt, int maxline){
     static const int hit_len = 2;
     static const int numbers_ix = 11;
 
-    for(int i=0;i<5;i++){_next.setNumber(i+1, 0);}
+    for(int i=0;i<5;i++){_next.num.setNumber(i+1, 0);}
 
     // elől van a legfrissebb
     auto drop = lines.count()-maxline;
@@ -146,11 +167,11 @@ bool Lottery::FromFile(const QString& txt, int maxline){
         d.setHit(2, Hit::FromCsv(a.mid(hit2_ix, hit_len), "2"));
         d.setHit(1, {0, 0, "",""});
 
-        d.setNumber(1, a[numbers_ix].toInt(&isok));
-        d.setNumber(2, a[numbers_ix+1].toInt(&isok));
-        d.setNumber(3, a[numbers_ix+2].toInt(&isok));
-        d.setNumber(4, a[numbers_ix+3].toInt(&isok));
-        d.setNumber(5, a[numbers_ix+4].toInt(&isok));
+        d.num.setNumber(1, a[numbers_ix].toInt(&isok));
+        d.num.setNumber(2, a[numbers_ix+1].toInt(&isok));
+        d.num.setNumber(3, a[numbers_ix+2].toInt(&isok));
+        d.num.setNumber(4, a[numbers_ix+3].toInt(&isok));
+        d.num.setNumber(5, a[numbers_ix+4].toInt(&isok));
 
   //      _data.append(d);
         if(maxline<=0)
@@ -206,13 +227,14 @@ Lottery::RefreshR Lottery::Refresh(int maxline){
     r.isOk = true;
     std::sort(_data.begin(), _data.end(), Data::AscByDate);
 
-    auto i_min = _data.begin();
-    auto i_max = _data.end();
+    //auto i_min = _data.begin();
+    //auto i_max = _data.end();
 
-    r.histogram = Lottery::Histogram(i_min, i_max);
-    for(int n=0;n<5;n++) r.histograms[n] = Lottery::Histogram(i_min, i_max, n+1);
+    r.histogram = Lottery::Histogram(_data, 0);
+    for(int n=0;n<5;n++)
+        r.histograms[n] = Lottery::Histogram(_data, n+1);
 
-    auto last = _data.last().Numbers();
+    auto last = _data.last().num;
     r.last.append(last);
 
     r.min_y = *std::min_element(r.histogram.begin(), r.histogram.end());
@@ -240,19 +262,15 @@ QVector<QVector<int>> Lottery::SelectByCombination(const QVector<Occurence>&p, i
     return e;
 }
 
-QVector<Lottery::Data> Lottery::Filter(QVector<QVector<int>>& p){
+
+QVector<Lottery::Data> Lottery::ToData(QVector<QVector<int>>& p){
     QVector<Data> e;
     if(p.isEmpty()) return e;
 
     for(auto&i:p){
         Data d0;
         if(i.count()<5) return e;
-        for(int j=0;j<5;j++)
-        {
-            int n = i[j];
-            d0.setNumber(j+1, n);
-        }
-        if(!d0.TestAll()) continue;
+        for(int j=0;j<5;j++) d0.num.setNumber(j+1, i[j]);
         e.append(d0);
     }
     return e;
@@ -286,20 +304,22 @@ Lottery::ShuffleR Lottery::Generate(int *p, int k, int max){
     return r;
 }
 
-Lottery::ShuffleR Lottery::Generate2(const QVector<Lottery::Data>& d){
+Lottery::ShuffleR Lottery::Generate2(QVector<Lottery::Data>& d){
     Lottery::ShuffleR r;
     int K = Lottery::_settings.K;
-     r.num = Lottery::SelectByOccurence(d, K); // vesszük k db leggyakoribbat
+    r.num = Lottery::SelectByOccurence(d, K); // vesszük k db leggyakoribbat
 
-    if(r.num.count()>5){
+    if(r.num.count()>5){        
         auto a = Lottery::SelectByCombination(r.num, 5); // permutáljuk
-        r.comb = Lottery::Filter(a);
+        r.comb = Lottery::ToData(a);
+        Weight(&r.comb);
         r.isok = true;
     }
-    else if(r.num.count()==5){
+    else if(r.num.count()==5){        
         Lottery::Data d0;
-        for(int j=1;j<=5;j++) d0.setNumber(j, r.num[j-1].num);
-        if(d0.TestAll()) r.comb.append(d0);
+        for(int j=1;j<=5;j++) d0.num.setNumber(j, r.num[j-1].num);
+        r.comb.append(d0);
+        Weight(&r.comb);
         r.isok = true;
     }
 
@@ -312,7 +332,7 @@ QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
 
     if(max<Lottery::_settings.c_min) max=Lottery::_settings.c_min; else if(max>Lottery::_settings.c_max) max = Lottery::_settings.c_max;
 
-    auto histogram = Lottery::Histogram(_data.begin(), _data.end());
+    auto histogram = Lottery::Histogram(_data, 0);
 
     QVector<int> num2;
     for(int i=0;i<90;i++)
@@ -336,20 +356,12 @@ QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
             int max = num.count();
             auto ix = rand() % max;
             int n = num[ix];
-            d0.setNumber(j, n);
+            d0.num.setNumber(j, n);
             //m0[j-1]=n;
             num.removeAll(n);
         }
-        // TODO páros súly DE NEM ITT
-        // elméleti: 5:87, 4:477, 3:1000, 2:1000, 1:477, 0:87 /3128 húzás
-        // 5: kiszámolni
-        // 4: kiszámolni
-        // TODO Shuffle után nem dobni kell, hanem súlyt számolni a húzásra
-        // TODO histogramnál a húzás számait a súllyal kell számítani
 
-        // TODO pentilis súly
-        // 1:3, 2:256, 3:1464, 4:1270, 5:135
-        if(!d0.TestAll()) continue;
+        //if(!d0.TestAll()) continue;
 
         if(QThread::currentThread()->isInterruptionRequested()) return d;
 
@@ -367,19 +379,87 @@ QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
     return d;
 }
 
-QVector<Lottery::Occurence> Lottery::SelectByOccurence(const QVector<Data>& d, int db){
+// TODO páros súly
+// elméleti: 5:87, 4:477, 3:1000, 2:1000, 1:477, 0:87 /3128 húzás
+
+void Lottery::Weight(QVector<Lottery::Data>* d)
+{
+    WeightClear(d);
+    WeightByParity(d);
+    WeightByPentilis(d);
+}
+
+void Lottery::WeightClear(QVector<Data>* d){
+    for(auto&i:*d) i.num.weight = 1;
+}
+
+void Lottery::WeightByParity(QVector<Data>* d){
+    //QVector<qreal> e(d.length());
+//    qreal w[6]; for(auto&i:w)i=0;
+
+//    for(auto&i:_data) w[i.num.NumbersEven()]++;
+//    auto m =0; for(auto&i:w)if(i>m)m=i;
+//    for(auto&i:w)i/=m;
+    auto wp = WeightsByParity();
+
+
+    for(int i=0;i<d->length();i++) (*d)[i].num.WeightByParity(wp);
+//    {
+//        auto data = (*d)[i];
+//        (*d)[i].num.weight *= wp[data.num.NumbersEven()];
+//    }
+
+    //return e;
+}
+
+QVector<qreal> Lottery::WeightsByParity(){
+    QVector<qreal> w(6); for(auto&i:w)i=0;
+
+    for(auto&i:_data) w[i.num.NumbersEven()]++;
+    auto m =0; for(auto&i:w)if(i>m)m=i;
+    for(auto&i:w)i/=m;
+    return w;
+}
+
+QVector<qreal> Lottery::WeightsByPentilis(){
+    QVector<qreal> w(6); for(auto&i:w)i=0;
+
+    for(auto&i:_data) w[i.num.NumbersPentilis()]++;
+    auto m =0; for(auto&i:w)if(i>m)m=i;
+    for(auto&i:w)i/=m;
+    return w;
+}
+
+
+
+// TODO pentilis súly
+// 1:3, 2:256, 3:1464, 4:1270, 5:135
+
+void Lottery::WeightByPentilis(QVector<Data>* d){
+    auto wp = WeightsByPentilis();
+
+    for(int i=0;i<d->length();i++) (*d)[i].num.WeightByPentilis(wp);
+//    {
+//        //auto data = (*d)[i];
+//        //(*d)[i].num.weight *= wp[data.num.NumbersPentilis()];
+
+//        (*d)[i].num.WeightByPentilis(wp);
+//    }
+}
+
+QVector<Lottery::Occurence> Lottery::SelectByOccurence(QVector<Data>& d, int db){
     QVector<Occurence> e;
     if(db<5 || db>Lottery::_settings.max) return e;
     if(d.isEmpty()) return e;
 
-    // TODO itt a páros súlyt
-    // a pentilis súlyt kiszámoljuk, d minden elemére
-    // és a histogramot e szerint képezzük
-    auto h2 = Lottery::Histogram(d.begin(), d.end());
+    // TODO a histogramot e szerint képezzük
+
+    Weight(&d);
+    auto h2 = Lottery::Histogram(d,0);
 
 //    auto h3 = h2;
 
-    // kiválasztjuk a 10 legjobbat
+    // kiválasztjuk az n legjobbat
     for(int i=0;i<db;i++)
     {
         int ix = -1;
@@ -410,33 +490,35 @@ void Lottery::Save(const QVector<Lottery::Data> &d)
     for(auto&i:d)
     {
         if(!txt.isEmpty()) txt+= com::helper::StringHelper::NewLine;
-        txt.append(i.NumbersToString());
+        txt.append(i.num.ToString());
     }
 
     com::helper::TextFileHelper::save(txt, ffn);
 }
 
-QVarLengthArray<int> Lottery::Histogram(
-    const QVector<Data>::const_iterator begin,
-    const QVector<Data>::const_iterator end, int m)
+/// az adatok 1, 2 ... 5. számára csinálja
+/// az 1. 2. ... 5. nyerőszám gyakoriságát adja
+/// az összes gyakoriságát adja
+///
+QVector<qreal> Lottery::Histogram(const QVector<Data>&d, int m)
 {
-    QVarLengthArray<int> r(90);for(auto& i:r) i=0;//0-89
-    if(begin==end) return r;
+    QVector<qreal> r(90);for(auto& i:r) i=0;//0-89
     if(m<0||m>5) return r;
 
-    //int t = 0;
-    for(auto i = begin;i!=end;i++){
-        if(!m){
+    for(auto&i:d){
+        if(!m)//m az 0
+        {
             for(int n =1;n<=5;n++)
             {
-                int x = i->number(n);// X: 1-90
+                int x = i.num.number(n);// X: 1-90
                 if(!x) continue; // 0 az hiba
-                r[x-1]++;
+                r[x-1]+= i.num.weight;
             }
         }
-        else{
-            int x = i->number(m);// X: 1-90
-            r[x-1]++;
+        else
+        {
+            int x = i.num.number(m);// X: 1-90
+            r[x-1]+=i.num.weight;
         }
     }
 

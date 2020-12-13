@@ -43,7 +43,7 @@ void CombinationDialog::setUi(const Lottery::ShuffleR &m)
 //                if(!txt.isEmpty()) txt+="\t";
 //            }
 //            o0++;
-            txt+= i.NumbersToString();
+            txt+= i.num.ToString();
         }
     }
     ui->textBrowser->setText(txt);

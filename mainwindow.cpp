@@ -49,8 +49,12 @@ MainWindow::MainWindow(QWidget *parent)
     //bool isok = last.year == year && last.week == week;
 
 
-    uiWeekSpinBoxSetMinMax(1, Lottery::_data.count());
+    uiWeekSpinBoxSetMinMax(1, Lottery::_data.count());    
     uiWeekSpinBoxSetValue(Lottery::_data.count());
+
+    uiFilterSpinBoxSetMinMax(1, 10);
+    uiFilterSpinBoxSetValue(Lottery::_settings.filter);
+
     setUi(a); // beállítja a MAX, MAY értékeket is
 
     _shuffled_series.setName("sorsolt");
@@ -232,7 +236,7 @@ void MainWindow::on_pushButton_download_clicked()
 void MainWindow::setUi(const Lottery::RefreshR& m){
     if(!m.isOk) return;
     QString txt = Lottery::_data.last().datetime.toString() + com::helper::StringHelper::NewLine+ \
-                Lottery::_data.last().NumbersToString();
+                Lottery::_data.last().num.ToString();
 
     this->ui->label_data->setText(txt);
 
@@ -272,9 +276,9 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
 
     bool frames_isok = !frames.isEmpty();
     // az utolsót kirakni
-    for(int* j:m.last){
+    for(auto&j:m.last){
        for(int i=0;i<5;i++){
-           int n = j[i];
+           int n = j.number(i+1);
             qreal y = m.histogram[n-1];
             //qreal y = 0;
             qreal x = n-.5;
@@ -422,27 +426,6 @@ void MainWindow::on_pushButton_clicked()
     auto a = d.result();
     if(a.isok) setUi(a);
 
-//    QString data_ffn = Lottery::_settings.data_ffn("");
-//    QDir dir(data_ffn);
-//    auto fl = dir.entryInfoList(QDir::Filter::Files);
-//    if(fl.isEmpty()) return;
-//    QVector<Lottery::Data> fd;
-//    for(auto&i:fl){
-//        if(!i.fileName().endsWith(".csv")) continue;
-//        auto fn = i.absoluteFilePath();
-//        auto txt = com::helper::TextFileHelper::load(fn);
-//        auto lines = com::helper::StringHelper::toStringList(txt);
-//        for(auto&line:lines){
-//            auto l = line.split(",");
-//            if(l.count()<5) continue;
-//            Lottery::Data d0;
-//            bool isok;
-//            for(int k=0;k<5;k++) d0.setNumber(k+1, l[k].toInt(&isok));
-//            fd.append(d0);
-//        }
-//    }
-//    if(fd.isEmpty()) return;
-//    auto r = Lottery::Generate2(fd, 7);
     auto r = Lottery::RefreshByWeek();
     setUi(r);
 
@@ -455,15 +438,10 @@ void MainWindow::setUi(const Lottery::ShuffleR& m)
     d.exec();
 
     _shuffled_series.clear();
-    //chart->removeSeries(&_shuffled_series);
-    //auto r = shuffnum/Lottery::_data.size();
-
-    for(auto&i:m.num){//Lottery::_shuffled
+    for(auto&i:m.num){
         qreal x = i.num-.5;
         _shuffled_series.append(QPointF(x, 1));
-    }
-
-    //chart->addSeries(&_shuffled_series);
+    }    
 }
 
 void MainWindow::resetUi(const Lottery::RefreshByWeekR& m){
@@ -495,8 +473,12 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     int sum_prize=0;
     int sum_n=0;
     QString sum_curr;
-    for(auto&i:m.comb){
-        auto txt = i.NumbersToString();
+    int h=0;
+    for(auto&i:m.comb)
+    {
+        if(i.num.weight<qreal(1)/Lottery::_settings.filter) continue;
+        QString txt = '('+QString::number(i.num.weight, 'g', 2)+") ";
+        txt+= i.num.ToString(Lottery::_next.num);
 
         if(isok){
             QString curr;
@@ -512,6 +494,7 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
         }        
 
         ui->listWidget->addItem(txt);
+        h++;
     }
 
 
@@ -529,9 +512,9 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
         if(!(o%7)) if(!ctxt.isEmpty()) ctxt+=com::helper::StringHelper::NewLine;
 
         ctxt += QString::number(i.num);
-        if(Lottery::_next.Numbers()[0]){
+        if(Lottery::_next.num.number(1)){//vannak számok
             bool o3 = false;
-            for(int j=1;j<=5;j++) if(Lottery::_next.number(j)==i.num){ o3 = true;break;}
+            for(int j=1;j<=5;j++) if(Lottery::_next.num.number(j)==i.num){ o3 = true;break;}
             if(o3) ctxt+='*';
         }
 
@@ -549,8 +532,13 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     else{ //  még csak a szelvények árát tudjuk
         ctxt += '\n'+ QString::number(m.comb.length())+' '+"db";
         ctxt += ' '+ QString::number(sum_ticket_price)+' ' + Lottery::_settings.ticket_curr;
+    }
+    if(m.mweight>0)
+    {
+        ctxt +="\nmaxw: "+QString::number(m.mweight)+" "+QString::number(m.mweights.count())+"db";
 
     }
+
 
     // milyen húzások értek el valamilyen találatot?
     //if(!m.besthits.isEmpty()){
@@ -563,7 +551,11 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
                 ui->listWidget->addItem(ntxt);
                 //i.
                 for(auto&k:i){
-                    QString mtxt = QString::number(k.ix+1)+'-'+k.numbers.ToString();
+                    if(k.numbers.weight<qreal(1)/Lottery::_settings.filter) continue;
+
+                    QString mtxt = QString::number(k.ix+1)+". "+
+                        '('+QString::number(k.numbers.weight, 'g', 2)+") "
+                        +k.numbers.ToString(Lottery::_next.num);
                     ui->listWidget->addItem(mtxt);
                 }
             }
@@ -656,8 +648,7 @@ void MainWindow::uiCombinationsSpinBoxSetMinMax(int min, int max){
 
 
 
-// wminus wplus
-
+// wminus wplus // homemade spinbox
 
 void MainWindow::uiWeekSpinBoxSetValue(int i){
     ui->label_w->setProperty("value", i);
@@ -699,12 +690,54 @@ void MainWindow::on_week_valueChanged(int arg1)
     auto a = Lottery::Refresh(arg1);
     setUi(a);
     auto l = Lottery::_data.last();
-    QDate date = QDate::fromString(QString::number(l.year)+"-01-01", Qt::DateFormat::ISODate).addDays(l.week*7);
+    QDate date = QDate::fromString(QString::number(l.year)+"-01-01", Qt::DateFormat::ISODate).addDays(l.week*7-7);
 
-    Lottery::_settings.setDate(date);
+    Lottery::_settings.setDate(date);    
+
 
     RefreshByWeek();
+
+    ui->rweek->setText(Lottery::_settings.yearweek());
     lock=false;
 }
 
+// fminus fplus
 
+void MainWindow::uiFilterSpinBoxSetValue(int i){
+    ui->label_f->setProperty("value", i);
+    ui->label_f->setText(QString::number(qreal(1.0)/i));
+}
+
+void MainWindow::uiFilterSpinBoxSetMinMax(int min, int max){
+    ui->label_f->setProperty("min", min);
+    ui->label_f->setProperty("max", max);
+}
+
+void MainWindow::on_pushButton_fminus_clicked()
+{
+    int v = ui->label_f->property("value").toInt();
+    int min = ui->label_f->property("min").toUInt();
+    if(v<=min) return; // elértük
+    uiFilterSpinBoxSetValue(--v);
+    on_filter_valueChanged(v);
+}
+
+void MainWindow::on_pushButton_3_clicked()
+{
+    int v = ui->label_f->property("value").toInt();
+    int max = ui->label_f->property("max").toUInt();
+    if(v>=max) return; // elértük
+    uiFilterSpinBoxSetValue(++v);
+    on_filter_valueChanged(v);
+}
+
+void MainWindow::on_filter_valueChanged(int arg1)
+{
+    if(!_isinited) return;
+    static bool lock = false;
+    if(lock) return;
+    lock=true;
+    Lottery::_settings.filter = arg1;
+    RefreshByWeek();
+    lock=false;
+}
