@@ -240,8 +240,12 @@ void MainWindow::on_pushButton_download_clicked()
 
 void MainWindow::setUi(const Lottery::RefreshR& m){
     if(!m.isOk) return;
-    QString txt = Lottery::_data.last().datetime.toString() + com::helper::StringHelper::NewLine+ \
-                Lottery::_data.last().num.ToString();
+    QString txt = Lottery::_data.last().datetime.toString();
+    //if(Lottery::_data.last().)
+    //TODO after : megmondja egy yearweekről hogy kisebb-e mint egy másik
+    //TODO ha a data.last yearweekje kisebb mint a settings.date yearweekje, akkor nincs húzás rá
+// benne van a fájlban? nem, mert a fájlban a last az utolsó és ez pedig utolsó utáni
+    txt += com::helper::StringHelper::NewLine+Lottery::_data.last().num.ToString();
 
     this->ui->label_data->setText(txt);
 
