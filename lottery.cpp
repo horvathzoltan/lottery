@@ -124,7 +124,7 @@ QVector<QVector<Lottery::BestHit>> Lottery::FindBestHit(const QVector<Lottery::D
     return e;
 }
 
-bool Lottery::FromFile(const QString& txt, int maxline){
+bool Lottery::FromFile(const QString& txt, int year, int week){
     //auto txt = com::helper::TextFileHelper::load(fp);
     auto lines = com::helper::StringHelper::toStringList(txt);
 
@@ -143,15 +143,15 @@ bool Lottery::FromFile(const QString& txt, int maxline){
     for(int i=0;i<5;i++){_next.num.setNumber(i+1, 0);}
 
     // elől van a legfrissebb
-    auto drop = lines.count()-maxline;
-    int linecount = 0;
+    //auto drop = lines.count()-maxline;
+    //int linecount = 0;
     for(auto l: lines){
         if(l.isEmpty()) continue;
         if(l.startsWith('#')) continue;
         auto a = CsvSplit(l);
         if(a.length()<16) continue;
-        linecount++;
-        if(maxline>0 && linecount<drop) continue;
+        //linecount++;
+        //if(maxline>0 && linecount<drop) continue;
 
         //if(maxline>0 && linecount++<drop) continue;
         Data d;
@@ -159,6 +159,7 @@ bool Lottery::FromFile(const QString& txt, int maxline){
 
         d.year = a[year_ix].toInt(&isok);
         d.week = a[week_ix].toInt(&isok);
+
         d.datetime = QDate::fromString(a[datetime_ix], "yyyy.MM.dd.");
 
         d.setHit(5, Hit::FromCsv(a.mid(hit5_ix, hit_len), "5"));
@@ -173,14 +174,21 @@ bool Lottery::FromFile(const QString& txt, int maxline){
         d.num.setNumber(4, a[numbers_ix+3].toInt(&isok));
         d.num.setNumber(5, a[numbers_ix+4].toInt(&isok));
 
-  //      _data.append(d);
-        if(maxline<=0)
+        if(year>-1){
+            if(d.year<year||(d.year==year&&d.week<=week))
+                _data.append(d);
+            else
+                _next = d;
+        }
+        else
             _data.append(d);
-        else if(maxline>0 && linecount>drop)
-            _data.append(d);
-        else if(maxline>0 && linecount==drop)
-            _next = d;
-            //for(int i=0;i<5;i++){_lastnum[i]=d.number(i+1);}
+//        if(maxline<=0)
+//            _data.append(d);
+//        else if(maxline>0 && linecount>drop)
+//            _data.append(d);
+//        else if(maxline>0 && linecount==drop)
+//            _next = d;
+
 
     }
     return size_orioginal<_data.size();
@@ -210,17 +218,17 @@ Lottery::Hit Lottery::Hit::FromCsv(const QStringList& lines, const QString &desc
 }
 
 // az adatfájlt tölti be
-Lottery::RefreshR Lottery::Refresh(int maxline){
+Lottery::RefreshR Lottery::Refresh(int year, int week){
     ////https://bet.szerencsejatek.hu/cmsfiles/otos.csv
     //com::helper::Downloader d;
-    static Lottery::RefreshR nullobj{false, {0}, {{0},{0},{0},{0},{0}}, {{}}, 0, 0};
+    static Lottery::RefreshR nullobj{false, {0}, {{0},{0},{0},{0},{0}},  0, 0};
 //    bool isok = com::helper::Downloader::Wget(
 //        "https://bet.szerencsejatek.hu/cmsfiles/otos.csv",
 //        Lottery::_settings.path);
 //    if(!isok) return nullobj;
     auto ffn = Lottery::_settings.download_ffn();
     auto txt = com::helper::TextFileHelper::load(ffn);
-    bool isok = Lottery::FromFile(txt, maxline);
+    bool isok = Lottery::FromFile(txt, year, week);
     if(!isok) return nullobj;
 
     Lottery::RefreshR r;
@@ -234,8 +242,8 @@ Lottery::RefreshR Lottery::Refresh(int maxline){
     for(int n=0;n<5;n++)
         r.histograms[n] = Lottery::Histogram(_data, n+1);
 
-    auto last = _data.last().num;
-    r.last.append(last);
+//    auto last = _data.last().num;
+//    r.last.append(last);
 
     r.min_y = *std::min_element(r.histogram.begin(), r.histogram.end());
     r.max_y = *std::max_element(r.histogram.begin(), r.histogram.end());
@@ -379,7 +387,7 @@ QVector<Lottery::Data> Lottery::Shuffle(int* ptr, int max){
     return d;
 }
 
-// TODO páros súly
+// páros súly
 // elméleti: 5:87, 4:477, 3:1000, 2:1000, 1:477, 0:87 /3128 húzás
 
 void Lottery::Weight(QVector<Lottery::Data>* d)
@@ -432,7 +440,7 @@ QVector<qreal> Lottery::WeightsByPentilis(){
 
 
 
-// TODO pentilis súly
+// pentilis súly
 // 1:3, 2:256, 3:1464, 4:1270, 5:135
 
 void Lottery::WeightByPentilis(QVector<Data>* d){
@@ -452,12 +460,8 @@ QVector<Lottery::Occurence> Lottery::SelectByOccurence(QVector<Data>& d, int db)
     if(db<5 || db>Lottery::_settings.max) return e;
     if(d.isEmpty()) return e;
 
-    // TODO a histogramot e szerint képezzük
-
     Weight(&d);
     auto h2 = Lottery::Histogram(d,0);
-
-//    auto h3 = h2;
 
     // kiválasztjuk az n legjobbat
     for(int i=0;i<db;i++)

@@ -14,6 +14,7 @@
 class Lottery
 {
 public:
+
     struct Settings{
         private:
             QDate _date = QDate::currentDate();
@@ -26,8 +27,8 @@ public:
             const QString home_fn = home.filePath(appname);
 
             const QString download_path = QDir(home_fn).filePath(download_dir);
-            QString data_path() { return QDir(QDir(home_fn).filePath(data_dir))
-                                            .filePath(yearweek());}
+            const QString data_root = QDir(home_fn).filePath(data_dir);
+            QString data_path() { return QDir(data_root).filePath(yearweek());}
             QDir path(const QString& fn){
                 auto p = QDir(fn);
                 if(!p.exists()) p.mkpath(fn);
@@ -38,7 +39,7 @@ public:
         public:
             int filter = 2;
             int max = 30;
-            int shuff_max = 100;//10000;
+            int shuff_max = 100;
             int c_min = 10;
             int c_max = 1000000;
             int K = 6;
@@ -47,9 +48,15 @@ public:
             QString url2= "http://www.lottoszamok.net/otoslotto/";
             QString url = "https://bet.szerencsejatek.hu/cmsfiles/otos.csv";
             QString download_ffn(){ return path(download_path).filePath("otos.csv");};
+            QString settings_ffn(){ return path(home_fn).filePath("settings.ini");};
             QString data_ffn(const QString &fn){ return path(data_path()).filePath(fn);};
 
             void setDate(QDate d){_date = d;};
+            void datemm(){_date=_date.addDays(-7);};
+            void datepp(){_date=_date.addDays(7);};
+
+//            int year(){return _date.year();}
+//            int week(){return _date.weekNumber();}
             QString yearweek(int *y = nullptr, int *w = nullptr){
                 auto t = _date;
                 auto t_y = t.year();
@@ -58,6 +65,12 @@ public:
                 if(y) *y = t_y;
                 if(w) *w = t_w;
                 return QString::number(t_y)+"-"+QString::number(t_w);
+            }
+
+            //TODO Toini Fromini - inihelper
+            QString ToIni(){
+
+                return "mamaliga";
             }
 
     };
@@ -133,10 +146,11 @@ public:
         }
 
         // ennyies a találat
-        int HitNum() const{
+        int HitNum(const Numbers& d) const{
             int x = 0; //ennyi találat
             for(auto&i:numbers){
-                for(int j=0;j<5;j++) if(numbers[j]==i) x++;
+                for(auto&j:d.numbers) if(j==i) x++;
+                //for(int j=0;j<5;j++) if(d.numbers[j]==i) x++;
             }
             if(x<1 || x>5) return 0;
             return x-1;
@@ -172,10 +186,11 @@ public:
             int ix = i-1;
             if(ix<0 || ix>=5) return;
             hits[ix] = h;
-        }       
+        }
 
-        int prizeCur(const Data &d, QString* curr, int* pixe = nullptr) const{
-            auto pix = num.HitNum();
+        // a this díjazása alapján a d kombináció mennyi találatt illetve pénz
+        int prizeCur(const Data& d, QString* curr, int* pixe = nullptr) const{
+            auto pix = num.HitNum(d.num);
             if(pixe) *pixe = pix;
             auto h = hits[pix];
             auto p = h.prize;
@@ -197,7 +212,7 @@ public:
     static QVector<Data> _data;
 
     Lottery();
-    static bool FromFile(const QString& fp, int n);
+    static bool FromFile(const QString& fp, int y, int w);
     static QStringList CsvSplit(const QString& s);
 
     struct RefreshR
@@ -205,12 +220,12 @@ public:
         bool isOk = false;
         QVector<qreal> histogram;
         QVector<qreal> histograms[5];
-        QVector<Numbers> last;
+        //QVector<Numbers> last;
         int min_y;
         int max_y;
     };
 
-    static RefreshR Refresh(int maxline);
+    static RefreshR Refresh(int year, int week);
 
     struct Occurence{
         int num;

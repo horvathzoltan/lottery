@@ -26,6 +26,10 @@ MainWindow::MainWindow(QWidget *parent)
     uiCombinationsSpinBoxSetValue(Lottery::_settings.K);
     ui->label_yearweek->setText(Lottery::_settings.yearweek());
 
+    //Lottery::_settings.date = QDate::currentDate();
+
+    //ui->label_date->setText(Lottery::_settings.date.toString("yyyy.mm.dd."));
+
     CreateTicket(); // a szelvény generálása
     ClearTicket();
 
@@ -38,9 +42,10 @@ MainWindow::MainWindow(QWidget *parent)
     chartView->setParent(ui->tab_2);
     chartView->setGeometry(ui->tab_2->geometry());
 
-    auto a = Lottery::Refresh(-1);
-//    int y = Lottery::_data.last().year;
-//    int w = Lottery::_data.last().week;
+    auto a = Lottery::Refresh(-1, -1);
+//    QDate date = QDate::fromString("2020-01-06", Qt::DateFormat::ISODate);
+//    int y = date.year();
+//    int w = date.weekNumber();
     //QDate date = QDate::fromString(QString::number(y)+"-01-01", Qt::DateFormat::ISODate).addDays((w-1)*7);
     //Lottery::_settings.setDate(date);
     //int year, week;
@@ -227,7 +232,7 @@ void MainWindow::on_pushButton_download_clicked()
         ffn);
     if(!isok) return;
     Lottery::_data.clear();
-    auto a = Lottery::Refresh(-1);
+    auto a = Lottery::Refresh(-1, -1);
     setUi(a);
     auto b = Lottery::RefreshByWeek();
     setUi(b);
@@ -267,6 +272,17 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     scatterseries->append(QPointF(0, 0));
     scatterseries->append(QPointF(MAX, MAY));
 
+    QScatterSeries *scatterseries2 = nullptr;
+
+    if(Lottery::_next.num.number(1)){
+    scatterseries2 = new QScatterSeries();
+    scatterseries2->setName("következő");
+    scatterseries2->setColor(Qt::yellow);
+    scatterseries2->setMarkerSize(7.0);
+
+    scatterseries2->append(QPointF(0, 0));
+    scatterseries2->append(QPointF(MAX, MAY));
+    }
     //set0->append(0);
 
     ClearTicket();
@@ -276,17 +292,29 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
 
     bool frames_isok = !frames.isEmpty();
     // az utolsót kirakni
-    for(auto&j:m.last){
+
+    auto j=Lottery::_data.last().num;
+    //for(auto&j:Lottery::_data.last().num)
+    //{
        for(int i=0;i<5;i++){
            int n = j.number(i+1);
-            qreal y = m.histogram[n-1];
-            //qreal y = 0;
-            qreal x = n-.5;
-            scatterseries->append(QPointF(x, y));
+           qreal y = m.histogram[n-1];
+           //qreal y = 0;
+           qreal x = n-.5;
+           scatterseries->append(QPointF(x, y));
+           if(frames_isok)
+               frames[n-1]->setPalette(pal);
 
-            if(frames_isok) frames[n-1]->setPalette(pal);
+           if(scatterseries2){
+               n = Lottery::_next.num.number(i+1);
+               y = m.histogram[n-1];
+               x = n-.5;
+               scatterseries2->append(QPointF(x, y));
+           }
+
+
         }
-    }
+    //}
 
 
     QLineSeries *lineseries[5];
@@ -355,6 +383,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     lineseries[3]->attachAxis(axisX);
     lineseries[4]->attachAxis(axisX);
     scatterseries->attachAxis(axisX);
+    if(scatterseries2) scatterseries2->attachAxis(axisX);
     barseries->attachAxis(axisX);
 
     axisX->setRange(QString("1"), QString::number(MAX));
@@ -375,6 +404,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     lineseries[3]->attachAxis(axisY);
     lineseries[4]->attachAxis(axisY);
     scatterseries->attachAxis(axisY);
+    if(scatterseries2)scatterseries2->attachAxis(axisY);
     barseries->attachAxis(axisY);
 
     QLinearGradient plotAreaGradient;
@@ -411,6 +441,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
         chart->addSeries(lineseries[n]);
     }
     chart->addSeries(scatterseries);
+    if(scatterseries2) chart->addSeries(scatterseries2);
 
     connect(barseries, &QBarSeries::hovered, this, &MainWindow::tooltip2);
 
@@ -538,7 +569,9 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
         ctxt +="\nmaxw: "+QString::number(m.mweight)+" "+QString::number(m.mweights.count())+"db";
 
     }
-
+    if(Lottery::_next.num.number(1)){
+        ctxt+="\nnext: "+Lottery::_next.num.ToString();
+    }
 
     // milyen húzások értek el valamilyen találatot?
     //if(!m.besthits.isEmpty()){
@@ -584,6 +617,13 @@ void MainWindow::RefreshByWeek(){
         setUi(r);
     else
         resetUi(r);
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    QString txt = Lottery::_settings.ToIni();
+    QString fn = Lottery::_settings.settings_ffn();
+    com::helper::TextFileHelper::save(txt, fn);
 }
 
 // clipboard
@@ -651,8 +691,10 @@ void MainWindow::uiCombinationsSpinBoxSetMinMax(int min, int max){
 // wminus wplus // homemade spinbox
 
 void MainWindow::uiWeekSpinBoxSetValue(int i){
-    ui->label_w->setProperty("value", i);
-    ui->label_w->setText(QString::number(i));
+    //ui->label_w->setProperty("value", i);
+    QString txt = Lottery::_settings.yearweek();
+    ui->label_w->setText(txt);
+
 }
 
 void MainWindow::uiWeekSpinBoxSetMinMax(int min, int max){
@@ -662,20 +704,22 @@ void MainWindow::uiWeekSpinBoxSetMinMax(int min, int max){
 
 void MainWindow::on_pushButton_wminus_clicked()
 {
-    int v = ui->label_w->property("value").toInt();
+    //int v = ui->label_w->property("value").toInt();
     int min = ui->label_w->property("min").toUInt();
-    if(v<=min) return; // elértük
-    uiWeekSpinBoxSetValue(--v);
-    on_week_valueChanged(v);
+    //if(v<=min) return; // elértük
+    Lottery::_settings.datemm();
+    uiWeekSpinBoxSetValue(1);
+    on_week_valueChanged(1);
 }
 
 void MainWindow::on_pushButton_wplus_clicked()
 {
-    int v = ui->label_w->property("value").toInt();
+    //int v = ui->label_w->property("value").toInt();
     int max = ui->label_w->property("max").toUInt();
-    if(v>=max) return; // elértük
-    uiWeekSpinBoxSetValue(++v);
-    on_week_valueChanged(v);
+    //if(v>=max) return; // elértük
+    Lottery::_settings.datepp();
+    uiWeekSpinBoxSetValue(1);
+    on_week_valueChanged(1);
 
 }
 
@@ -687,17 +731,19 @@ void MainWindow::on_week_valueChanged(int arg1)
     lock=true;
     ClearTicket();
     Lottery::_data.clear();
-    auto a = Lottery::Refresh(arg1);
+    int y, w;
+    Lottery::_settings.yearweek(&y,&w);
+    auto a = Lottery::Refresh(y, w);
     setUi(a);
-    auto l = Lottery::_data.last();
-    QDate date = QDate::fromString(QString::number(l.year)+"-01-01", Qt::DateFormat::ISODate).addDays(l.week*7-7);
+    //auto l = Lottery::_data.last();
+    //QDate date = QDate::fromString(QString::number(l.year)+"-01-01", Qt::DateFormat::ISODate).addDays(l.week*7);
 
-    Lottery::_settings.setDate(date);    
+    //Lottery::_settings.setDate(date);
 
 
     RefreshByWeek();
 
-    ui->rweek->setText(Lottery::_settings.yearweek());
+    //ui->label_yearweek->setText(Lottery::_settings.yearweek());
     lock=false;
 }
 

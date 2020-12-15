@@ -79,10 +79,11 @@ public slots:
     void tooltip2(bool status, int index, QBarSet *barset);
 
 protected:
-    void mouseMoveEvent(QMouseEvent *event);
+    void mouseMoveEvent(QMouseEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
     void RefreshByWeek();
+    void closeEvent(QCloseEvent *event) override;
 };
 #endif // MAINWINDOW_H
