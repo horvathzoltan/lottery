@@ -65,9 +65,9 @@ LIBS += -L$$COMMON_LIBS_FULLPATH/ -ltextfilehelper
 LIBS += -L$$COMMON_LIBS_FULLPATH/ -lfilehelper
 LIBS += -L$$COMMON_LIBS_FULLPATH/ -ldownloadhelper
 LIBS += -L$$COMMON_LIBS_FULLPATH/ -lprocesshelper
-#LIBS += -L$$COMMON_LIBS_FULLPATH/ -lmacrofactory
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lmacrofactory
 
-#LIBS += -L$$COMMON_LIBS_FULLPATH/ -linihelper
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -linihelper
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -lsettingshelper
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -lxmlhelper
 }

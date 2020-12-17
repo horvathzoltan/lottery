@@ -231,7 +231,7 @@ void MainWindow::on_pushButton_download_clicked()
         Lottery::_settings.url,
         ffn);
     if(!isok) return;
-    Lottery::_data.clear();
+    //Lottery::_data.clear();
     auto a = Lottery::Refresh(-1, -1);
     setUi(a);
     auto b = Lottery::RefreshByWeek();
@@ -240,12 +240,11 @@ void MainWindow::on_pushButton_download_clicked()
 
 void MainWindow::setUi(const Lottery::RefreshR& m){
     if(!m.isOk) return;
-    QString txt = Lottery::_data.last().datetime.toString();
-    //if(Lottery::_data.last().)
-    //TODO after : megmondja egy yearweekről hogy kisebb-e mint egy másik
-    //TODO ha a data.last yearweekje kisebb mint a settings.date yearweekje, akkor nincs húzás rá
-// benne van a fájlban? nem, mert a fájlban a last az utolsó és ez pedig utolsó utáni
-    txt += com::helper::StringHelper::NewLine+Lottery::_data.last().num.ToString();
+    auto last = Lottery::_data.last();
+    QString txt = last.datetime.toString();
+
+   if(m.isExistInFile)
+        txt += com::helper::StringHelper::NewLine+last.num.ToString();
 
     this->ui->label_data->setText(txt);
 
@@ -306,8 +305,11 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
            //qreal y = 0;
            qreal x = n-.5;
            scatterseries->append(QPointF(x, y));
-           if(frames_isok)
-               frames[n-1]->setPalette(pal);
+
+
+           if(frames_isok && m.isExistInFile)
+              frames[n-1]->setPalette(pal);
+
 
            if(scatterseries2){
                n = Lottery::_next.num.number(i+1);
@@ -734,7 +736,7 @@ void MainWindow::on_week_valueChanged(int arg1)
     if(lock) return;
     lock=true;
     ClearTicket();
-    Lottery::_data.clear();
+    //Lottery::_data.clear();
     int y, w;
     Lottery::_settings.yearweek(&y,&w);
     auto a = Lottery::Refresh(y, w);

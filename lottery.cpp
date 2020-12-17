@@ -124,11 +124,13 @@ QVector<QVector<Lottery::BestHit>> Lottery::FindBestHit(const QVector<Lottery::D
     return e;
 }
 
-bool Lottery::FromFile(const QString& txt, int year, int week){
+bool Lottery::FromFile(const QString& txt, int year, int week, bool* isExist){
+    if(!isExist) return false;
     //auto txt = com::helper::TextFileHelper::load(fp);
     auto lines = com::helper::StringHelper::toStringList(txt);
-
-    auto size_orioginal = _data.size();
+    _data.clear();
+    *isExist = false;
+    //auto size_orioginal = _data.size();
 
     static const int year_ix = 0;
     static const int week_ix = 1;
@@ -174,8 +176,10 @@ bool Lottery::FromFile(const QString& txt, int year, int week){
         d.num.setNumber(4, a[numbers_ix+3].toInt(&isok));
         d.num.setNumber(5, a[numbers_ix+4].toInt(&isok));
 
+        if(!(*isExist) && Lottery::Settings::isDateEquals(d.year,d.week, year, week))
+            *isExist=true;
         if(year>-1){
-            if(d.year<year||(d.year==year&&d.week<=week))
+            if(Lottery::Settings::isAfterOrThis(d.year,d.week, year, week))//d.year<year||(d.year==year&&d.week<=week))
                 _data.append(d);
             else
                 _next = d;
@@ -191,7 +195,7 @@ bool Lottery::FromFile(const QString& txt, int year, int week){
 
 
     }
-    return size_orioginal<_data.size();
+    return _data.size();
 }
 
 QStringList Lottery::CsvSplit(const QString &s)
@@ -228,10 +232,12 @@ Lottery::RefreshR Lottery::Refresh(int year, int week){
 //    if(!isok) return nullobj;
     auto ffn = Lottery::_settings.download_ffn();
     auto txt = com::helper::TextFileHelper::load(ffn);
-    bool isok = Lottery::FromFile(txt, year, week);
+    bool isExistInFile;
+    bool isok = Lottery::FromFile(txt, year, week, &isExistInFile);
     if(!isok) return nullobj;
 
     Lottery::RefreshR r;
+    r.isExistInFile = isExistInFile;
     r.isOk = true;
     std::sort(_data.begin(), _data.end(), Data::AscByDate);
 

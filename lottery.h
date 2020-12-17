@@ -9,7 +9,8 @@
 #include <QString>
 #include <QVarLengthArray>
 #include <QVector>
-
+#include "common/helper/ini/inihelper.h"
+#include "common/macrofactory/macro.h"
 
 class Lottery
 {
@@ -67,10 +68,40 @@ public:
                 return QString::number(t_y)+"-"+QString::number(t_w);
             }
 
+            //label_f : Lottery::_settings.filter
+            //labelc : Lottery::_settings.K
+            // label_w : yearweek
             //TODO Toini Fromini - inihelper
-            QString ToIni(){
+            QString ToIni(){               
+                QMap<QString, QString> imap;
+                static const QString KEY_filter = "filter";
+                static const QString KEY_K = "K";
+                static const QString KEY_date = "date";
 
-                return "mamaliga";
+                imap.insert(KEY_filter, QString::number(Lottery::_settings.filter));
+                imap.insert(KEY_K, QString::number(Lottery::_settings.K));
+                imap.insert(KEY_date, Lottery::_settings._date.toString());
+
+                auto txt = com::helper::IniHelper::toString(imap, "cirmos");
+
+                return txt;
+            }
+
+            // igaz, ha 2-es későbbi mint az 1-es azaz 1<2
+            static bool isDateEquals(int y1, int w1, int y2, int w2){
+                return y1==y2 && w1==w2;
+            }
+
+            static bool isAfter(int y1, int w1, int y2, int w2){
+                if(y1<y2) return true;
+                if(y1>y2) return false;
+                return w2>w1;
+            }
+
+            static bool isAfterOrThis(int y1, int w1, int y2, int w2){
+                if(y1<y2) return true;
+                if(y1>y2) return false;
+                return w2>=w1;
             }
 
     };
@@ -212,17 +243,18 @@ public:
     static QVector<Data> _data;
 
     Lottery();
-    static bool FromFile(const QString& fp, int y, int w);
+    static bool FromFile(const QString& fp, int y, int w, bool* b);
     static QStringList CsvSplit(const QString& s);
 
     struct RefreshR
     {
         bool isOk = false;
         QVector<qreal> histogram;
-        QVector<qreal> histograms[5];
+        QVector<qreal> histograms[5];        
         //QVector<Numbers> last;
         int min_y;
         int max_y;
+        bool isExistInFile; // ha az adott hét benne volt a fájlban
     };
 
     static RefreshR Refresh(int year, int week);
