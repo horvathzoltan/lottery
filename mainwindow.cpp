@@ -5,7 +5,6 @@
 #include "combinationdialog.h"
 #include "common/helper/downloader/downloader.h"
 #include "common/helper/string/stringhelper.h"
-#include "common/helper/textfilehelper/textfilehelper.h"
 #include <QtWidgets/QGraphicsView>
 
 #include <QtCharts>
@@ -22,9 +21,10 @@ MainWindow::MainWindow(QWidget *parent)
     _isinited = false;
     ui->setupUi(this);
 
+    Lottery::_settings.FromIni();
     uiCombinationsSpinBoxSetMinMax(5, 30);
     uiCombinationsSpinBoxSetValue(Lottery::_settings.K);
-    ui->label_yearweek->setText(Lottery::_settings.yearweek());
+    //ui->label_yearweek->setText(Lottery::_settings.yearweek());
 
     //Lottery::_settings.date = QDate::currentDate();
 
@@ -456,7 +456,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
 //TODO egy kombináció hány számja egyezik meg az előzővel - legfeljebb mennyi egyezhet meg? 1.
 
 // generate
-void MainWindow::on_pushButton_clicked()
+void MainWindow::on_pushButton_generate_clicked()
 {
     ShufflingDialog d;
     d.exec();
@@ -592,7 +592,7 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
                 for(auto&k:i){
                     if(k.numbers.weight<qreal(1)/Lottery::_settings.filter) continue;
 
-                    QString mtxt = QString::number(k.ix+1)+". "+
+                    QString mtxt = QString::number(k.ix)+". "+
                         '('+QString::number(k.numbers.weight, 'g', 2)+") "
                         +k.numbers.ToString(Lottery::_next.num);
                     ui->listWidget->addItem(mtxt);
@@ -627,9 +627,7 @@ void MainWindow::RefreshByWeek(){
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    QString txt = Lottery::_settings.ToIni();
-    QString fn = Lottery::_settings.settings_ffn();
-    com::helper::TextFileHelper::save(txt, fn);
+    Lottery::_settings.ToIni();
 }
 
 // clipboard
@@ -792,4 +790,25 @@ void MainWindow::on_filter_valueChanged(int arg1)
     Lottery::_settings.filter = arg1;
     RefreshByWeek();
     lock=false;
+}
+
+void MainWindow::on_pushButton_combination_clicked()
+{
+    auto txt = ui->lineEdit_combination->text().replace(' ', ',');
+
+    auto a = txt.split(',');
+    if(a.length()<5) return;
+    QVector<Lottery::Data> dl;
+    Lottery::Data d;
+    bool isok;
+    for(int i=0;i<5;i++) d.num.setNumber(i+1, a[i].toInt(&isok));
+    dl.append(d);
+
+    Lottery::Weight(&dl);
+
+    auto* n = &dl[0].num;
+
+    txt= n->ToString()+' '+QString::number(n->weight, 'g', 2);
+    ui->lineEdit_combination->setText(txt);
+
 }

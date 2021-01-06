@@ -54,7 +54,7 @@ private:
 
 private slots:
     void on_pushButton_download_clicked();
-    void on_pushButton_clicked();
+    void on_pushButton_generate_clicked();
     void on_pushButton_2_clicked();
 
     void on_spinBox_valueChanged(int arg1);
@@ -72,6 +72,8 @@ private slots:
     void on_pushButton_fminus_clicked();
 
     void on_pushButton_3_clicked();
+
+    void on_pushButton_combination_clicked();
 
 public slots:
     void keepCallout();

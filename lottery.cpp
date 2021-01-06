@@ -401,29 +401,23 @@ void Lottery::Weight(QVector<Lottery::Data>* d)
     WeightClear(d);
     WeightByParity(d);
     WeightByPentilis(d);
+    WeightByPrev(d, 1);
+    WeightByPrev(d, 2);
+    WeightByPrev(d, 3);
+    WeightByPrev(d, 4);
+    WeightByPrev(d, 5);
+    WeightByPrev(d, 6);
+    WeightByPrev(d, 7);
 }
 
 void Lottery::WeightClear(QVector<Data>* d){
     for(auto&i:*d) i.num.weight = 1;
 }
 
-void Lottery::WeightByParity(QVector<Data>* d){
-    //QVector<qreal> e(d.length());
-//    qreal w[6]; for(auto&i:w)i=0;
-
-//    for(auto&i:_data) w[i.num.NumbersEven()]++;
-//    auto m =0; for(auto&i:w)if(i>m)m=i;
-//    for(auto&i:w)i/=m;
+void Lottery::WeightByParity(QVector<Data>* d){  
     auto wp = WeightsByParity();
 
-
     for(int i=0;i<d->length();i++) (*d)[i].num.WeightByParity(wp);
-//    {
-//        auto data = (*d)[i];
-//        (*d)[i].num.weight *= wp[data.num.NumbersEven()];
-//    }
-
-    //return e;
 }
 
 QVector<qreal> Lottery::WeightsByParity(){
@@ -444,22 +438,47 @@ QVector<qreal> Lottery::WeightsByPentilis(){
     return w;
 }
 
+// az előzővel való egyezés esélye
+QVector<qreal> Lottery::WeightsByPrev(int prev_n){
+    QVector<qreal> w(6); for(auto&i:w)i=0;
+
+    for(int i=prev_n;i<_data.count();i++)// a 0-nak nincs prev-je
+    {
+        auto prev = _data[i-prev_n].num;
+        auto p1=(_data[i]).num.HitNum(prev);
+        w[p1]++;
+    }
+    //for(auto&i:_data) w[i.num.NumbersPrev1()]++;
+    auto m =0; for(auto&i:w)if(i>m)m=i;
+    for(auto&i:w)i/=m;
+    return w;
+}
 
 
 // pentilis súly
 // 1:3, 2:256, 3:1464, 4:1270, 5:135
 
 void Lottery::WeightByPentilis(QVector<Data>* d){
-    auto wp = WeightsByPentilis();
+    auto wp = WeightsByPentilis(); //kiszámolja a súlyt
 
-    for(int i=0;i<d->length();i++) (*d)[i].num.WeightByPentilis(wp);
-//    {
-//        //auto data = (*d)[i];
-//        //(*d)[i].num.weight *= wp[data.num.NumbersPentilis()];
-
-//        (*d)[i].num.WeightByPentilis(wp);
-//    }
+    for(int i=0;i<d->length();i++) (*d)[i].num.WeightByPentilis(wp); // szoroz a találat szerint
 }
+
+void Lottery::WeightByPrev(QVector<Data>* d, int pre_n){
+    auto wp = WeightsByPrev(pre_n);  // a súlyok 1, 2, ... 5 és 0 egyezésre
+
+    // az előző num is kell, aszerint kell szorozni
+    auto prev = (&_data.last())-(pre_n-1);
+    for(int i=0;i<d->length();i++) (*d)[i].num.WeightByPrev1(wp, &prev->num);
+}
+
+//void Lottery::WeightByPrev2(QVector<Data>* d){
+//    auto wp = WeightsByPrev2();  // a súlyok 1, 2, ... 5 és 0 egyezésre
+
+//    // az előző num is kell, aszerint kell szorozni
+//    auto prev = (&_data.last())-1;
+//    for(int i=0;i<d->length();i++) (*d)[i].num.WeightByPrev1(wp, &prev->num);
+//}
 
 QVector<Lottery::Occurence> Lottery::SelectByOccurence(QVector<Data>& d, int db){
     QVector<Occurence> e;

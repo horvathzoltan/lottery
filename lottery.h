@@ -11,6 +11,7 @@
 #include <QVector>
 #include "common/helper/ini/inihelper.h"
 #include "common/macrofactory/macro.h"
+#include "common/helper/textfilehelper/textfilehelper.h"
 
 class Lottery
 {
@@ -40,7 +41,7 @@ public:
         public:
             int filter = 2;
             int max = 30;
-            int shuff_max = 100;
+            int shuff_max = 900;//250000;//25000;//900; // ennyit generál egyszerre
             int c_min = 10;
             int c_max = 1000000;
             int K = 6;
@@ -72,7 +73,7 @@ public:
             //labelc : Lottery::_settings.K
             // label_w : yearweek
             //TODO Toini Fromini - inihelper
-            QString ToIni(){               
+            void ToIni(){
                 QMap<QString, QString> imap;
                 static const QString KEY_filter = "filter";
                 static const QString KEY_K = "K";
@@ -84,7 +85,32 @@ public:
 
                 auto txt = com::helper::IniHelper::toString(imap, "cirmos");
 
-                return txt;
+                QString fn = Lottery::_settings.settings_ffn();
+                com::helper::TextFileHelper::save(txt, fn);
+            }
+
+            void FromIni(){
+                QString fn = Lottery::_settings.settings_ffn();
+                QString txt = com::helper::TextFileHelper::load(fn);
+                auto m = com::helper::IniHelper::parseIni(txt);
+
+                if(m.contains("filter")){
+                    bool isok;
+                    int v = m.value("filter").toInt(&isok);
+                    if(isok) Lottery::_settings.filter = v;
+                }
+
+                if(m.contains("K")){
+                    bool isok;
+                    int v = m.value("K").toInt(&isok);
+                    if(isok) Lottery::_settings.K = v;
+                }
+
+                if(m.contains("date")){
+                    //bool isok;
+                    auto v = QDate::fromString(m.value("date"));
+                    //Lottery::_settings._date = v;
+                }
             }
 
             // igaz, ha 2-es későbbi mint az 1-es azaz 1<2
@@ -156,6 +182,13 @@ public:
             weight *= w[NumbersPentilis()];
         }
 
+        void WeightByPrev1(const QVector<qreal>& w, Numbers *prev)
+        {
+            auto n = this->HitNum(*prev);
+            weight *= w[n];
+        }
+
+
         bool operator== (const Numbers& r){
             int o=0;
             for(auto&i:numbers){
@@ -167,6 +200,7 @@ public:
         void sort(){std::sort(numbers, numbers+5);}
 
         int NumbersEven()const{int p=0;for(auto&i:numbers)if(!(i%2))p++;return p;}
+
 
         int NumbersPentilis()const{
             QSet<int> pen;
@@ -322,6 +356,11 @@ public:
     static QVector<qreal> WeightsByParity();
     static QVector<qreal> WeightsByPentilis();
     static QVector<Lottery::Numbers> FindByMaxWeight(const QVector<Lottery::Data> &fd, int *maxweight);
+    static void WeightByPrev(QVector<Data> *d, int);
+    static QVector<qreal> WeightsByPrev(int i);
+    //static void WeightByPrev2(QVector<Data> *d);
+    //static QVector<qreal> WeightsByPrev2();
+
 };
 
 #endif // LOTTERY_H
