@@ -199,9 +199,11 @@ public:
 
         void sort(){std::sort(numbers, numbers+5);}
 
+        // páros számok a húzásban
         int NumbersEven()const{int p=0;for(auto&i:numbers)if(!(i%2))p++;return p;}
 
 
+        // külömböző pentilisek száma a húzásban
         int NumbersPentilis()const{
             QSet<int> pen;
             static const int r = 90/5;//18
@@ -244,7 +246,7 @@ public:
         QDate datetime;
         Numbers num;
     private:
-        Hit hits[5];
+        Hit hits[5]; // melyik találat hogy fizet a héten
 
     public:
         void setHit(int i, Hit h){
