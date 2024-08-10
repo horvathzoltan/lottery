@@ -42,7 +42,9 @@ MainWindow::MainWindow(QWidget *parent)
     chartView->setParent(ui->tab_2);
     chartView->setGeometry(ui->tab_2->geometry());
 
-    auto a = Lottery::Refresh(-1, -1);
+    int year, week;
+    auto t_txt = Lottery::_settings.yearweek(&year, &week);
+    auto a = Lottery::Refresh(year, week);
 //    QDate date = QDate::fromString("2020-01-06", Qt::DateFormat::ISODate);
 //    int y = date.year();
 //    int w = date.weekNumber();
