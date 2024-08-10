@@ -56,18 +56,19 @@ unix:!macx:
 {
 message( "hmmmm "$$HOME/$$COMMON_LIBS)
 LIBS += -L$$COMMON_LIBS_FULLPATH/ -llogger
-LIBS += -L$$COMMON_LIBS_FULLPATH/ -lshortguid # loggerhez kell
+#LIBS += -L$$COMMON_LIBS_FULLPATH/ -lshortguid # loggerhez kell
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -lsignalhelper
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -lCommandLineParserHelper
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -lcoreappworker
-LIBS += -L$$COMMON_LIBS_FULLPATH/ -lstringhelper
-LIBS += -L$$COMMON_LIBS_FULLPATH/ -ltextfilehelper
-LIBS += -L$$COMMON_LIBS_FULLPATH/ -lfilehelper
-LIBS += -L$$COMMON_LIBS_FULLPATH/ -ldownloadhelper
-LIBS += -L$$COMMON_LIBS_FULLPATH/ -lprocesshelper
-LIBS += -L$$COMMON_LIBS_FULLPATH/ -lmacrofactory
-
-LIBS += -L$$COMMON_LIBS_FULLPATH/ -linihelper
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lStringHelper
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lTextFileHelper
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lFileError
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lFileHelper
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lFileNameHelper
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lDownloader
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lProcessHelper
+#LIBS += -L$$COMMON_LIBS_FULLPATH/ -lmacrofactory
+LIBS += -L$$COMMON_LIBS_FULLPATH/ -lIniHelper
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -lsettingshelper
 #LIBS += -L$$COMMON_LIBS_FULLPATH/ -lxmlhelper
 }

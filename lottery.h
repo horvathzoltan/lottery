@@ -9,9 +9,8 @@
 #include <QString>
 #include <QVarLengthArray>
 #include <QVector>
-#include "common/helper/ini/inihelper.h"
-#include "common/macrofactory/macro.h"
-#include "common/helper/textfilehelper/textfilehelper.h"
+#include "../common/common/helpers/IniHelper/inihelper.h"
+#include "../common/common/helpers/TextFileHelper/textfilehelper.h"
 
 class Lottery
 {
@@ -83,16 +82,21 @@ public:
                 imap.insert(KEY_K, QString::number(Lottery::_settings.K));
                 imap.insert(KEY_date, Lottery::_settings._date.toString());
 
-                auto txt = com::helper::IniHelper::toString(imap, "cirmos");
+                auto txt = com::helpers::IniHelper::toString(imap, "cirmos");
 
                 QString fn = Lottery::_settings.settings_ffn();
-                com::helper::TextFileHelper::save(txt, fn);
+
+                com::helpers::FileErrors err;
+                com::helpers::TextFileHelper::Save(txt, fn, &err);
             }
 
             void FromIni(){
                 QString fn = Lottery::_settings.settings_ffn();
-                QString txt = com::helper::TextFileHelper::load(fn);
-                auto m = com::helper::IniHelper::parseIni(txt);
+
+                com::helpers::FileErrors err;
+                auto lines = com::helpers::TextFileHelper::LoadLines(fn, &err);
+
+                auto m = com::helpers::IniHelper::Parse(lines);
 
                 if(m.contains("filter")){
                     bool isok;

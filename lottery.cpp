@@ -1,8 +1,8 @@
 #include "lottery.h"
-#include "common/helper/textfilehelper/textfilehelper.h"
-#include "common/helper/string/stringhelper.h"
-#include "common/helper/downloader/downloader.h"
-#include "common/helper/textfilehelper/textfilehelper.h"
+#include "../common/common/helpers/TextFileHelper/textfilehelper.h"
+#include "../common/common/helpers/StringHelper/stringhelper.h"
+#include "../common/common/helpers/Downloader/downloader.h"
+#include "../common/common/helpers/TextFileHelper/textfilehelper.h"
 #include <QDir>
 #include <QSet>
 #include <QThread>
@@ -28,8 +28,9 @@ QFileInfoList Lottery::ExclusionByWeek(){
     auto fil = DataFileInfoListByWeek();
     QString ex_fn = Lottery::_settings.data_ffn("excl.csv");
 
-    auto ex_txt = com::helper::TextFileHelper::load(ex_fn);
-    auto ex_lines = com::helper::StringHelper::toStringList(ex_txt);
+    com::helpers::FileErrors err;
+    auto ex_txt = com::helpers::TextFileHelper::Load(ex_fn, &err);
+    auto ex_lines = com::helpers::StringHelper::toStringList(ex_txt);
 
     QFileInfoList e;
 
@@ -50,8 +51,10 @@ Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
     for(auto&i:fl){
         if(!i.fileName().endsWith(".csv")) continue;
         auto fn = i.absoluteFilePath();
-        auto txt = com::helper::TextFileHelper::load(fn);
-        auto lines = com::helper::StringHelper::toStringList(txt);
+
+        com::helpers::FileErrors err;
+        auto txt = com::helpers::TextFileHelper::Load(fn, &err);
+        auto lines = com::helpers::StringHelper::toStringList(txt);
         for(auto&line:lines){
             auto l = line.split(",");
             if(l.count()<5) continue;
@@ -127,7 +130,7 @@ QVector<QVector<Lottery::BestHit>> Lottery::FindBestHit(const QVector<Lottery::D
 bool Lottery::FromFile(const QString& txt, int year, int week, bool* isExist){
     if(!isExist) return false;
     //auto txt = com::helper::TextFileHelper::load(fp);
-    auto lines = com::helper::StringHelper::toStringList(txt);
+    auto lines = com::helpers::StringHelper::toStringList(txt);
     _data.clear();
     *isExist = false;
     //auto size_orioginal = _data.size();
@@ -231,7 +234,9 @@ Lottery::RefreshR Lottery::Refresh(int year, int week){
 //        Lottery::_settings.path);
 //    if(!isok) return nullobj;
     auto ffn = Lottery::_settings.download_ffn();
-    auto txt = com::helper::TextFileHelper::load(ffn);
+
+    com::helpers::FileErrors err;
+    auto txt = com::helpers::TextFileHelper::Load(ffn, &err);
     bool isExistInFile;
     bool isok = Lottery::FromFile(txt, year, week, &isExistInFile);
     if(!isok) return nullobj;
@@ -513,7 +518,7 @@ QVector<Lottery::Occurence> Lottery::SelectByOccurence(QVector<Data>& d, int db)
         h2[ix] = 0;
     }
 
-    std::sort(e.begin(), e.end());
+    //std::sort(e.begin(), e.end());
     return e;
 }
 
@@ -526,11 +531,12 @@ void Lottery::Save(const QVector<Lottery::Data> &d)
 
     for(auto&i:d)
     {
-        if(!txt.isEmpty()) txt+= com::helper::StringHelper::NewLine;
+        if(!txt.isEmpty()) txt+= com::helpers::StringHelper::NewLine;
         txt.append(i.num.ToString());
     }
 
-    com::helper::TextFileHelper::save(txt, ffn);
+    com::helpers::FileErrors err;
+    com::helpers::TextFileHelper::Save(txt, ffn, &err);
 }
 
 /// az adatok 1, 2 ... 5. számára csinálja

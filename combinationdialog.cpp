@@ -1,6 +1,6 @@
 #include "combinationdialog.h"
 #include "ui_combinationdialog.h"
-#include "common/helper/string/stringhelper.h"
+//#include "../common/common/helpers/StringHelper/stringhelper.h"
 
 
 CombinationDialog::CombinationDialog(QWidget *parent) :

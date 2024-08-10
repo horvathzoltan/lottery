@@ -3,8 +3,8 @@
 #include "lottery.h"
 #include "shufflingdialog.h"
 #include "combinationdialog.h"
-#include "common/helper/downloader/downloader.h"
-#include "common/helper/string/stringhelper.h"
+#include "../common/common/helpers/Downloader/downloader.h"
+#include "../common/common/helpers/StringHelper/stringhelper.h"
 #include <QtWidgets/QGraphicsView>
 
 #include <QtCharts>
@@ -227,7 +227,7 @@ void MainWindow::tooltip2(bool status, int index, QBarSet *barset){
 void MainWindow::on_pushButton_download_clicked()
 {
     auto ffn = Lottery::_settings.download_ffn();
-    bool isok = com::helper::Downloader::Wget(
+    bool isok = com::helpers::Downloader::Wget(
         Lottery::_settings.url,
         ffn);
     if(!isok) return;
@@ -244,7 +244,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     QString txt = last.datetime.toString();
 
    if(m.isExistInFile)
-        txt += com::helper::StringHelper::NewLine+last.num.ToString();
+        txt += com::helpers::StringHelper::NewLine+last.num.ToString();
 
     this->ui->label_data->setText(txt);
 
@@ -477,7 +477,8 @@ void MainWindow::setUi(const Lottery::ShuffleR& m)
     _shuffled_series.clear();
     for(auto&i:m.num){
         qreal x = i.num-.5;
-        _shuffled_series.append(QPointF(x, 1));
+        auto a = QPointF(x, 1);
+        _shuffled_series.append(a);
     }    
 }
 
@@ -542,22 +543,53 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     QString ctxt;
     int o = 0;
 
+    QList<QList<int>> e0;
+    QList<int> e;
     for(auto&i:m.num){ // felsorolja a kombináció számait és felrakja a zöld pettyeket
         qreal x = i.num-.5;
         _all_shuffled_series.append(QPointF(x, r2?i.hist*r2:6));
-        if(!ctxt.isEmpty()) ctxt+=",";
-        if(!(o%7)) if(!ctxt.isEmpty()) ctxt+=com::helper::StringHelper::NewLine;
 
-        ctxt += QString::number(i.num);
-        if(Lottery::_next.num.number(1)){//vannak számok
-            bool o3 = false;
-            for(int j=1;j<=5;j++) if(Lottery::_next.num.number(j)==i.num){ o3 = true;break;}
-            if(o3) ctxt+='*';
+        if(o>0 && !(o%5))
+        {
+            e0.append(e);
+            e.clear();
         }
 
+        e.append(i.num);
         o++;
-
     }
+    if(!e.isEmpty()){
+        e0.append(e);
+    }
+
+    QString a0;
+    for(auto&a:e0){
+        std::sort(a.begin(), a.end());
+        QString b0;
+        for(auto&b:a){
+            if(!b0.isEmpty()) b0+=',';
+
+            // maga a szám
+            b0+=QString::number(b);
+
+            // ha kihúzták, megcsillagozzuk
+            if(Lottery::_next.num.number(1)){//vannak számok
+                bool o3 = false;
+                for(int j=1;j<=5;j++)
+                    if(Lottery::_next.num.number(j)==b)
+                    {
+                        o3 = true;
+                        break;
+                    }
+                if(o3) ctxt+='*';
+            }
+
+        }
+        if(!a0.isEmpty()) a0+=com::helpers::StringHelper::NewLine;
+        a0+=b0;
+    }
+
+    ctxt+= a0;
 
     auto sum_ticket_price = m.comb.length()*Lottery::_settings.ticket_price;
     if(sum_prize>0){ // tudjuk a nyereményt
