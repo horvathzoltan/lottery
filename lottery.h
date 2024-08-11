@@ -278,8 +278,8 @@ public:
         }
 
     };
-    static Data _next;
 
+    static Data _next;
     static QVector<Data> _data;
 
     Lottery();

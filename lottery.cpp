@@ -147,6 +147,7 @@ bool Lottery::FromFile(const QString& txt, int year, int week, bool* isExist){
 
     for(int i=0;i<5;i++){_next.num.setNumber(i+1, 0);}
 
+    _next = {};
     // elől van a legfrissebb
     //auto drop = lines.count()-maxline;
     //int linecount = 0;
@@ -181,14 +182,19 @@ bool Lottery::FromFile(const QString& txt, int year, int week, bool* isExist){
 
         if(!(*isExist) && Lottery::Settings::isDateEquals(d.year,d.week, year, week))
             *isExist=true;
-        if(year>-1){
+
+
+
+        if(year>-1)
+        {
             if(Lottery::Settings::isAfterOrThis(d.year,d.week, year, week))//d.year<year||(d.year==year&&d.week<=week))
                 _data.append(d);
             else
                 _next = d;
         }
-        else
+        else{
             _data.append(d);
+        }
 //        if(maxline<=0)
 //            _data.append(d);
 //        else if(maxline>0 && linecount>drop)

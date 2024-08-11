@@ -23,12 +23,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     Lottery::_settings.FromIni();
     uiCombinationsSpinBoxSetMinMax(5, 30);
-    uiCombinationsSpinBoxSetValue(Lottery::_settings.K);
-    //ui->label_yearweek->setText(Lottery::_settings.yearweek());
-
-    //Lottery::_settings.date = QDate::currentDate();
-
-    //ui->label_date->setText(Lottery::_settings.date.toString("yyyy.mm.dd."));
+    uiCombinationsSpinBoxSetValue(Lottery::_settings.K);        
 
     CreateTicket(); // a szelvény generálása
     ClearTicket();
@@ -45,15 +40,19 @@ MainWindow::MainWindow(QWidget *parent)
     int year, week;
     auto t_txt = Lottery::_settings.yearweek(&year, &week);
     auto a = Lottery::Refresh(year, week);
-//    QDate date = QDate::fromString("2020-01-06", Qt::DateFormat::ISODate);
-//    int y = date.year();
-//    int w = date.weekNumber();
+
+    //QDate date = QDate::fromString("2020-01-06", Qt::DateFormat::ISODate);
     //QDate date = QDate::fromString(QString::number(y)+"-01-01", Qt::DateFormat::ISODate).addDays((w-1)*7);
     //Lottery::_settings.setDate(date);
     //int year, week;
     //auto t_txt = Lottery::_settings.yearweek(&year, &week);
 
     //bool isok = last.year == year && last.week == week;
+    QDate date = QDate::currentDate();
+    int y = date.year();
+    int w = date.weekNumber();
+    QString yw_txt = QString::number(y)+"-"+QString::number(w);
+    ui->groupBox->setTitle(yw_txt);
 
 
     uiWeekSpinBoxSetMinMax(1, Lottery::_data.count());    
@@ -233,8 +232,11 @@ void MainWindow::on_pushButton_download_clicked()
         Lottery::_settings.url,
         ffn);
     if(!isok) return;
-    //Lottery::_data.clear();
-    auto a = Lottery::Refresh(-1, -1);
+
+    int year, week;
+    auto t_txt = Lottery::_settings.yearweek(&year, &week);
+    auto a = Lottery::Refresh(year, week);
+
     setUi(a);
     auto b = Lottery::RefreshByWeek();
     setUi(b);
@@ -243,17 +245,15 @@ void MainWindow::on_pushButton_download_clicked()
 void MainWindow::setUi(const Lottery::RefreshR& m){
     if(!m.isOk) return;
     auto last = Lottery::_data.last();
-    QString txt = last.datetime.toString();
 
-   if(m.isExistInFile)
-        txt += com::helpers::StringHelper::NewLine+last.num.ToString();
+    this->ui->label_date->setText(last.datetime.toString());
 
-    this->ui->label_data->setText(txt);
+    if(m.isExistInFile){
+        this->ui->label_hits->setText(last.num.ToString());
+    } else{
+        this->ui->label_hits->setText("");
 
-//    txt = QString::number(Lottery::_data.size()) + com::helper::StringHelper::NewLine;
-//    this->ui->label_w->setText(txt);
-
-    //this->ui->label_date->setText(d.datetime.toString());
+    }
 
     MAX = 90;
     MAY = m.max_y;
@@ -505,15 +505,16 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     if(Lottery::_data.isEmpty()) return;
     auto last = Lottery::_data.last();
     ui->label_comb->setText(txt);
-    int year, week;
-    auto t_txt = Lottery::_settings.yearweek(&year, &week);
 
+    int year, week;
+    Lottery::_settings.yearweek(&year, &week);
     bool isok = last.year <= year && last.week <= week;
 
     int sum_prize=0;
     int sum_n=0;
     QString sum_curr;
     int h=0;
+
     for(auto&i:m.comb)
     {
         if(i.num.weight<qreal(1)/Lottery::_settings.filter) continue;
@@ -583,7 +584,7 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
                         o3 = true;
                         break;
                     }
-                if(o3) ctxt+='*';
+                if(o3) b0+='*';
             }
 
         }
@@ -592,6 +593,9 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     }
 
     ctxt+= a0;
+
+    QString dtxt = QString::number(Lottery::_next.year)+'-'+QString::number(Lottery::_next.week);
+    ui->label_tipp_date->setText(dtxt);
 
     auto sum_ticket_price = m.comb.length()*Lottery::_settings.ticket_price;
     if(sum_prize>0){ // tudjuk a nyereményt
@@ -607,8 +611,8 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     if(m.mweight>0)
     {
         ctxt +="\nmaxw: "+QString::number(m.mweight)+" "+QString::number(m.mweights.count())+"db";
-
     }
+
     if(Lottery::_next.num.number(1)){
         ctxt+="\nnext: "+Lottery::_next.num.ToString();
     }
@@ -773,15 +777,9 @@ void MainWindow::on_week_valueChanged(int arg1)
     Lottery::_settings.yearweek(&y,&w);
     auto a = Lottery::Refresh(y, w);
     setUi(a);
-    //auto l = Lottery::_data.last();
-    //QDate date = QDate::fromString(QString::number(l.year)+"-01-01", Qt::DateFormat::ISODate).addDays(l.week*7);
-
-    //Lottery::_settings.setDate(date);
-
 
     RefreshByWeek();
 
-    //ui->label_yearweek->setText(Lottery::_settings.yearweek());
     lock=false;
 }
 
@@ -789,7 +787,8 @@ void MainWindow::on_week_valueChanged(int arg1)
 
 void MainWindow::uiFilterSpinBoxSetValue(int i){
     ui->label_f->setProperty("value", i);
-    ui->label_f->setText(QString::number(qreal(1.0)/i));
+    qreal q = qreal(1.0)/i;
+    ui->label_f->setText(QString::number(q,'f',2));
 }
 
 void MainWindow::uiFilterSpinBoxSetMinMax(int min, int max){
