@@ -45,7 +45,9 @@ Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
 //    QString data_ffn = Lottery::_settings.data_ffn("");
 //    QDir dir(data_ffn);
 //    auto fl = dir.entryInfoList(QDir::Filter::Files);
-    auto fl = DataFileInfoListByWeek();
+
+    // adott hétnek a sorsolásai
+    QFileInfoList fl = DataFileInfoListByWeek();
     if(fl.isEmpty()) return nullelem;
     QVector<Lottery::Data> fd;
     for(auto&i:fl){
@@ -59,6 +61,7 @@ Lottery::RefreshByWeekR Lottery::RefreshByWeek(){
             auto l = line.split(",");
             if(l.count()<5) continue;
             Lottery::Data d0;
+
             bool isok;
             for(int k=0;k<5;k++) d0.num.setNumber(k+1, l[k].toInt(&isok));
             fd.append(d0);
@@ -265,6 +268,7 @@ Lottery::RefreshR Lottery::Refresh(int year, int week){
     r.min_y = *std::min_element(r.histogram.begin(), r.histogram.end());
     r.max_y = *std::max_element(r.histogram.begin(), r.histogram.end());
 
+    r.lastOccurences = Lottery::LastOccurences(_data);
     return r;
 }
 
@@ -572,6 +576,29 @@ QVector<qreal> Lottery::Histogram(const QVector<Data>&d, int m)
     }
 
     return r;
+}
+
+QVector<qreal> Lottery::LastOccurences(const QVector<Data>& data){
+    int L = 90;
+
+    QVector<qreal> a(L);for(auto& i:a) i=0;
+
+    int dataLenth = data.count();
+    for(int i=0;i<dataLenth;i++)
+    {
+        Data d = data[i];
+
+        for(int k=0;k<L;k++){
+            int szam = k+1;
+            if(d.num.contains(szam)){
+                a[k]=0;
+            } else{
+                a[k]++;
+            }
+        }
+    }
+
+    return a;
 }
 
 

@@ -35,7 +35,14 @@ MainWindow::MainWindow(QWidget *parent)
     chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
     chartView->setParent(ui->tab_2);
-    chartView->setGeometry(ui->tab_2->geometry());
+
+  //  auto s = ui->tab->size();
+  //  auto s2 = ui->frame->size();
+
+    chartView->resize(1200,800);
+
+    //auto g = ui->tab_2->geometry();
+    //chartView->setGeometry(g);
 
     int year, week;
     auto t_txt = Lottery::_settings.yearweek(&year, &week);
@@ -113,6 +120,7 @@ void MainWindow::CreateTicket(){
     QPalette pal_blue;
     pal_blue.setColor(QPalette::WindowText, Qt::blue);
 
+    // megcsinálja a cellákat
     for(int i=0;i<90;i++){
         int y = i/10;
         int x = i%10;
@@ -133,6 +141,8 @@ void MainWindow::CreateTicket(){
         auto ay = (w->height()-l->height())/2;
         l->move(ax, ay);
 
+
+        // húzások száma
 
         QLabel *l2 = new QLabel(w);
         l2->setFont(font2);
@@ -235,9 +245,11 @@ void MainWindow::on_pushButton_download_clicked()
 
     int year, week;
     auto t_txt = Lottery::_settings.yearweek(&year, &week);
-    auto a = Lottery::Refresh(year, week);
 
+    // sorsolási elemeket frissíti nem a szelvényt
+    auto a = Lottery::Refresh(year, week);    
     setUi(a);
+
     auto b = Lottery::RefreshByWeek();
     setUi(b);
 }
@@ -267,7 +279,14 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     QBarSeries* barseries = new QBarSeries();
     //barseries->setBarWidth(1);
     QBarSet* set0 = new QBarSet("összes");
+    set0->setColor(Qt::darkBlue);
     barseries->append(set0);
+
+    QBarSeries* barseries2 = new QBarSeries();
+    //barseries->setBarWidth(1);
+    QBarSet* set2 = new QBarSet("utolsó");
+    set2->setColor(Qt::magenta);
+    barseries2->append(set2);
 
     QScatterSeries *scatterseries = new QScatterSeries();
     scatterseries->setName("utolsó");
@@ -351,7 +370,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     for(int i=0;i<MAX;i++){
         categories.append(QString::number(i+1)); //1-90
 
-        auto x = m.histogram[i];
+        double x = m.histogram[i];
         auto a = QString::number(x);
 
         if(labels2_isok) labels2[i]->setText(a); // labelek a táblában
@@ -361,12 +380,16 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
 
         set0->append(x); //bars
 
+         qreal x2 = m.lastOccurences[i];
+         set2->append(x2);
+
         for(int n=0;n<5;n++) // lines
         {
             qreal x = (qreal)(i)+.5;
             qreal y = m.histograms[n][i];
             lineseries[n]->append(QPointF(x, y));
         }
+
 
     }
 
@@ -393,6 +416,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     scatterseries->attachAxis(axisX);
     if(scatterseries2) scatterseries2->attachAxis(axisX);
     barseries->attachAxis(axisX);
+    barseries2->attachAxis(axisX);
 
     axisX->setRange(QString("1"), QString::number(MAX));
     //axisX->setRange(1, MAX);
@@ -414,6 +438,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     scatterseries->attachAxis(axisY);
     if(scatterseries2)scatterseries2->attachAxis(axisY);
     barseries->attachAxis(axisY);
+    barseries2->attachAxis(axisY);
 
     QLinearGradient plotAreaGradient;
     plotAreaGradient.setStart(QPointF(0, 0));
@@ -444,6 +469,8 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
 
 
     chart->addSeries(barseries);
+    chart->addSeries(barseries2);
+
     for(int n=0;n<5;n++)
     {
         chart->addSeries(lineseries[n]);
@@ -515,27 +542,30 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
     QString sum_curr;
     int h=0;
 
-    for(auto&i:m.comb)
-    {
-        if(i.num.weight<qreal(1)/Lottery::_settings.filter) continue;
-        QString txt = '('+QString::number(i.num.weight, 'g', 2)+") ";
-        txt+= i.num.ToString(Lottery::_next.num);
+    if(m.besthits.isEmpty()){
+        for(auto&i:m.comb)
+        {
+            bool filter1 = i.num.weight<qreal(1)/Lottery::_settings.filter;
 
-        if(isok){
-            QString curr;
-            int hn;
-            auto v = Lottery::_next.prizeCur(i, &curr, &hn);
-            if(v>0){
-                txt += ' '+QString::number(hn+1)+"-s("+ QString::number(v) + ' ' + curr+')';
-                sum_prize += v;
-                if(sum_curr.isEmpty()) sum_curr = curr;
-                sum_n++;
+            if(filter1) continue;
+            QString txt = '('+QString::number(i.num.weight, 'g', 2)+") ";
+            txt+= i.num.ToString(Lottery::_next.num);
+
+            if(isok){
+                QString curr;
+                int hn;
+                auto v = Lottery::_next.prizeCur(i, &curr, &hn);
+                if(v>0){
+                    txt += ' '+QString::number(hn+1)+"-s("+ QString::number(v) + ' ' + curr+')';
+                    sum_prize += v;
+                    if(sum_curr.isEmpty()) sum_curr = curr;
+                    sum_n++;
+                }
             }
 
-        }        
-
-        ui->listWidget->addItem(txt);
-        h++;
+            ui->listWidget->addItem(txt);
+            h++;
+        }
     }
 
 
@@ -628,7 +658,7 @@ void MainWindow::setUi(const Lottery::RefreshByWeekR& m){
                 ui->listWidget->addItem(ntxt);
                 //i.
                 for(auto&k:i){
-                    if(k.numbers.weight<qreal(1)/Lottery::_settings.filter) continue;
+                    //if(k.numbers.weight<qreal(1)/Lottery::_settings.filter) continue;
 
                     QString mtxt = QString::number(k.ix)+". "+
                         '('+QString::number(k.numbers.weight, 'g', 2)+") "

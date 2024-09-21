@@ -233,13 +233,19 @@ public:
             return numbers[ix];
         }
 
-
-
         void setNumber(int i, int n){
             int ix = i-1;
             if(ix<0 || ix>=5) return;
             numbers[ix] = n;
         }
+
+        // QSet<int> get_numbers(){
+        //     QSet<int> a;
+        //     for (int i = 0; i < 5; ++i) {
+        //         a.insert(numbers[i]);
+        //     }
+        //     return a;
+        // }
     };
 
 
@@ -258,6 +264,8 @@ public:
             if(ix<0 || ix>=5) return;
             hits[ix] = h;
         }
+
+        //QSet<int> get_numbers(){return num.get_numbers();}
 
         // a this díjazása alapján a d kombináció mennyi találatt illetve pénz
         int prizeCur(const Data& d, QString* curr, int* pixe = nullptr) const{
@@ -295,6 +303,8 @@ public:
         int min_y;
         int max_y;
         bool isExistInFile; // ha az adott hét benne volt a fájlban
+
+        QVector<qreal> lastOccurences;
     };
 
     static RefreshR Refresh(int year, int week);
@@ -319,6 +329,8 @@ public:
     static void Save(const QVector<Data>&);
 
     static QVector<qreal> Histogram(const QVector<Data>& d, int x);
+
+    static QVector<qreal> LastOccurences(const QVector<Data>&d);
 
     static QVector<QVector<int>> SelectByCombination(const QVector<Occurence>& p, int k);
     static QVector<QVector<int>> Combination(int N, int K);
@@ -366,6 +378,7 @@ public:
     static QVector<qreal> WeightsByPrev(int i);
     //static void WeightByPrev2(QVector<Data> *d);
     //static QVector<qreal> WeightsByPrev2();
+
 
 };
 
