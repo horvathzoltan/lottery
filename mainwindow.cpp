@@ -406,6 +406,10 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     //QValueAxis *axisX = new QValueAxis();
 
     axisX->append(categories);
+     auto a = axisX->labelsFont();
+    // int s = a.pointSize();
+    a.setPointSize(6);
+    axisX->setLabelsFont(a);
     chart->addAxis(axisX, Qt::AlignBottom);
 
     lineseries[0]->attachAxis(axisX);
