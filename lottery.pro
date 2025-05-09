@@ -40,16 +40,19 @@ equals(QT_ARCH, arm){
     COMMON_LIBS = $$COMMON_LIBS"_arm"
 }
 
+COMMON_LIBS = $$COMMON_LIBS"_Qt"$$QT_MAJOR_VERSION
+
 message( "architecture = "$$QT_ARCH )
 message( "commonlibs folder = "$$COMMON_LIBS )
 
 #unix:HOME = $$system(echo $HOME)
 #win32:HOME = $$system(echo %userprofile%)
 
+
 # INSTALLDIR = $$COMMON_LIBS
 COMMON_LIBS_FULLPATH = $$shell_path($$HOME/$$COMMON_LIBS)
 
-message( " commonlibs full path = "$$COMMON_LIBS_FULLPATH)
+message( "commonlibs full path = "$$COMMON_LIBS_FULLPATH)
 
 #unix:!macx: LIBS += -L/home/zoli/build-common-Desktop_Qt_5_12_2_GCC_64bit2-Debug/stringhelper/ -lstringhelper
 unix:!macx:

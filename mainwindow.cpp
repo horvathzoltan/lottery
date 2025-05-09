@@ -100,7 +100,7 @@ void MainWindow::ClearTicket(){
     QPalette pal_w = palette();
     QPalette pal_g = palette();
     pal_w.setColor(QPalette::Window, Qt::white);
-    pal_g.setColor(QPalette::Background, Qt::lightGray);
+    pal_g.setColor(QPalette::Window, Qt::lightGray);
     QPalette *p;
 
     for(int i=0;i<90;i++){
@@ -312,7 +312,7 @@ void MainWindow::setUi(const Lottery::RefreshR& m){
     ClearTicket();
 
     QPalette pal = palette();
-    pal.setColor(QPalette::Background, Qt::red);
+    pal.setColor(QPalette::Window, Qt::red);
 
     bool frames_isok = !frames.isEmpty();
     // az utolsót kirakni
